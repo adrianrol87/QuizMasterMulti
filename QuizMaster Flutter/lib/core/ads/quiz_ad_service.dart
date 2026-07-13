@@ -11,13 +11,15 @@ class QuizAdService {
   static final QuizAdService instance = QuizAdService._();
 
   static const _androidTestAppId = 'ca-app-pub-3940256099942544~3347511713';
-  static const _iosTestAppId = 'ca-app-pub-3940256099942544~1458002511';
+  static const _iosAppId = 'ca-app-pub-1404008250068138~9277252035';
   static const _androidTestBannerId = 'ca-app-pub-3940256099942544/6300978111';
-  static const _iosTestBannerId = 'ca-app-pub-3940256099942544/2934735716';
-  static const _androidTestInterstitialId = 'ca-app-pub-3940256099942544/1033173712';
-  static const _iosTestInterstitialId = 'ca-app-pub-3940256099942544/4411468910';
-  static const _androidTestRewardedId = 'ca-app-pub-3940256099942544/5224354917';
-  static const _iosTestRewardedId = 'ca-app-pub-3940256099942544/1712485313';
+  static const _iosBannerId = 'ca-app-pub-1404008250068138/6832041774';
+  static const _androidTestInterstitialId =
+      'ca-app-pub-3940256099942544/1033173712';
+  static const _iosInterstitialId = 'ca-app-pub-1404008250068138/9983829049';
+  static const _androidTestRewardedId =
+      'ca-app-pub-3940256099942544/5224354917';
+  static const _iosRewardedId = 'ca-app-pub-1404008250068138/7677798128';
 
   bool _mobileAdsInitialized = false;
   bool _adsEnabled = false;
@@ -26,6 +28,7 @@ class QuizAdService {
   String _rewardedUnitId = '';
   InterstitialAd? _interstitialAd;
   RewardedAd? _rewardedAd;
+  Completer<RewardedAd?>? _rewardedLoadCompleter;
   int _completedLevelCounter = 0;
   bool _adsRemoved = false;
 
@@ -35,14 +38,15 @@ class QuizAdService {
           defaultTargetPlatform == TargetPlatform.iOS);
 
   static String get testAppId => defaultTargetPlatform == TargetPlatform.iOS
-      ? _iosTestAppId
+      ? _iosAppId
       : _androidTestAppId;
 
   bool get adsEnabled => !_adsRemoved && _adsEnabled && isSupportedPlatform;
 
   bool get adsRemoved => _adsRemoved;
 
-  bool get rewardMultiplierAvailable => adsEnabled && _rewardedUnitId.isNotEmpty;
+  bool get rewardMultiplierAvailable =>
+      adsEnabled && _rewardedUnitId.isNotEmpty;
 
   Future<void> configure(SystemConfig config) async {
     if (!isSupportedPlatform) {
@@ -51,7 +55,8 @@ class QuizAdService {
     }
 
     final isAndroid = defaultTargetPlatform == TargetPlatform.android;
-    final inAppAdsMode = isAndroid ? config.inAppAdsMode : config.iosInAppAdsMode;
+    final inAppAdsMode =
+        isAndroid ? config.inAppAdsMode : config.iosInAppAdsMode;
     final adsType = isAndroid ? config.adsType : config.iosAdsType;
 
     _adsEnabled = inAppAdsMode && adsType == 1;
@@ -59,18 +64,35 @@ class QuizAdService {
     _interstitialUnitId = _resolveInterstitialId(config);
     _rewardedUnitId = _resolveRewardedId(config);
 
+    debugPrint(
+      'AdMob configuration: enabled=$_adsEnabled, platform='
+      '${defaultTargetPlatform.name}, banner=${_bannerUnitId.isNotEmpty}, '
+      'interstitial=${_interstitialUnitId.isNotEmpty}, '
+      'rewarded=${_rewardedUnitId.isNotEmpty}.',
+    );
+
     if (!_adsEnabled) {
+      debugPrint(
+        'AdMob disabled: inAppAdsMode=$inAppAdsMode, adsType=$adsType.',
+      );
       _disposeLoadedAds();
       return;
     }
 
     if (!_mobileAdsInitialized) {
+      if (kDebugMode) {
+        await MobileAds.instance.updateRequestConfiguration(
+          RequestConfiguration(
+            testDeviceIds: ['de93e11bb193bdfbd98f91670e6a00b5'],
+          ),
+        );
+      }
       await MobileAds.instance.initialize();
       _mobileAdsInitialized = true;
     }
 
     _primeInterstitial();
-    _primeRewarded();
+    unawaited(_loadRewarded());
   }
 
   void setAdsRemoved(bool value) {
@@ -152,10 +174,12 @@ class QuizAdService {
       return false;
     }
 
-    final ad = _rewardedAd;
+    var ad = _rewardedAd;
     if (ad == null) {
-      _primeRewarded();
-      return false;
+      ad = await _loadRewarded();
+      if (ad == null) {
+        return false;
+      }
     }
 
     _rewardedAd = null;
@@ -165,14 +189,14 @@ class QuizAdService {
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
-        _primeRewarded();
+        unawaited(_loadRewarded());
         if (!completer.isCompleted) {
           completer.complete(earnedReward);
         }
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         ad.dispose();
-        _primeRewarded();
+        unawaited(_loadRewarded());
         if (!completer.isCompleted) {
           completer.complete(false);
         }
@@ -200,37 +224,58 @@ class QuizAdService {
         onAdLoaded: (ad) {
           _interstitialAd = ad;
         },
-        onAdFailedToLoad: (_) {
+        onAdFailedToLoad: (error) {
           _interstitialAd = null;
+          debugPrint('AdMob interstitial failed to load: $error');
         },
       ),
     );
   }
 
-  void _primeRewarded() {
-    if (!adsEnabled || _rewardedUnitId.isEmpty || _rewardedAd != null) {
-      return;
+  Future<RewardedAd?> _loadRewarded() async {
+    if (!adsEnabled || _rewardedUnitId.isEmpty) {
+      return null;
+    }
+    if (_rewardedAd != null) {
+      return _rewardedAd;
+    }
+    final activeLoad = _rewardedLoadCompleter;
+    if (activeLoad != null) {
+      return activeLoad.future;
     }
 
+    final completer = Completer<RewardedAd?>();
+    _rewardedLoadCompleter = completer;
     RewardedAd.load(
       adUnitId: _rewardedUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
-          _rewardedAd = ad;
+          if (adsEnabled) {
+            _rewardedAd = ad;
+            completer.complete(ad);
+          } else {
+            ad.dispose();
+            completer.complete(null);
+          }
+          _rewardedLoadCompleter = null;
         },
-        onAdFailedToLoad: (_) {
+        onAdFailedToLoad: (error) {
           _rewardedAd = null;
+          debugPrint('AdMob rewarded failed to load: $error');
+          completer.complete(null);
+          _rewardedLoadCompleter = null;
         },
       ),
     );
+    return completer.future;
   }
 
   String _resolveBannerId(SystemConfig config) {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       return config.iosAdmobBannerId.isNotEmpty
           ? config.iosAdmobBannerId
-          : _iosTestBannerId;
+          : _iosBannerId;
     }
     return config.admobBannerId.isNotEmpty
         ? config.admobBannerId
@@ -241,7 +286,7 @@ class QuizAdService {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       return config.iosAdmobInterstitialId.isNotEmpty
           ? config.iosAdmobInterstitialId
-          : _iosTestInterstitialId;
+          : _iosInterstitialId;
     }
     return config.admobInterstitialId.isNotEmpty
         ? config.admobInterstitialId
@@ -252,7 +297,7 @@ class QuizAdService {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       return config.iosAdmobRewardedVideoAds.isNotEmpty
           ? config.iosAdmobRewardedVideoAds
-          : _iosTestRewardedId;
+          : _iosRewardedId;
     }
     return config.admobRewardedVideoAds.isNotEmpty
         ? config.admobRewardedVideoAds

@@ -351,6 +351,18 @@ try {
         ApiResponse::success($data);
     }
 
+    if (isset($_POST['update_fcm_id'])) {
+        $userId = (int) ($_POST['user_id'] ?? 0);
+        $fcmId = trim((string) ($_POST['fcm_id'] ?? ''));
+        if ($userId <= 0 || $fcmId === '') {
+            ApiResponse::error('Please pass all the fields');
+        }
+        if (!$userRepository->updateFcmId($userId, $fcmId)) {
+            ApiResponse::error('User not found.', 404);
+        }
+        ApiResponse::success(null, 'FCM token updated successfully');
+    }
+
     if (isset($_POST['update_profile'])) {
         $userId = (int) ($_POST['user_id'] ?? 0);
         $name = trim((string) ($_POST['name'] ?? ''));

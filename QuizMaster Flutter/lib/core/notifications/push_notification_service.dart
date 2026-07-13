@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -49,7 +50,7 @@ class PushNotificationService {
 
     await _initializeLocalNotifications();
 
-    await _messaging.requestPermission(
+    final notificationSettings = await _messaging.requestPermission(
       alert: true,
       announcement: false,
       badge: true,
@@ -58,8 +59,25 @@ class PushNotificationService {
       provisional: false,
       sound: true,
     );
+    debugPrint(
+      'Push notification authorization: '
+      '${notificationSettings.authorizationStatus.name}; '
+      'alert=${notificationSettings.alert.name}; '
+      'lockScreen=${notificationSettings.lockScreen.name}; '
+      'notificationCenter=${notificationSettings.notificationCenter.name}; '
+      'sound=${notificationSettings.sound.name}.',
+    );
 
-    _tokenRefreshSubscription = FirebaseMessaging.instance.onTokenRefresh.listen(
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      await _messaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    }
+
+    _tokenRefreshSubscription =
+        FirebaseMessaging.instance.onTokenRefresh.listen(
       (token) {
         final userId = _currentUserId;
         if (userId == null || token.trim().isEmpty) {
@@ -70,7 +88,12 @@ class PushNotificationService {
     );
 
     FirebaseMessaging.onMessage.listen((message) {
-      unawaited(_showForegroundNotification(message));
+      final shouldShowLocalNotification =
+          defaultTargetPlatform != TargetPlatform.iOS ||
+              message.notification == null;
+      if (shouldShowLocalNotification) {
+        unawaited(_showForegroundNotification(message));
+      }
       debugPrint(
         'Push foreground: ${message.notification?.title ?? ''} ${message.notification?.body ?? ''}',
       );
@@ -93,7 +116,28 @@ class PushNotificationService {
       return;
     }
 
-    final token = await _messaging.getToken();
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      String? apnsToken;
+      for (var attempt = 0; attempt < 20 && apnsToken == null; attempt++) {
+        apnsToken = await _messaging.getAPNSToken();
+        if (apnsToken == null) {
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+        }
+      }
+      if (apnsToken == null) {
+        debugPrint('APNs token is not available yet.');
+        return;
+      }
+      debugPrint('APNs token is available.');
+    }
+
+    String? token;
+    try {
+      token = await _messaging.getToken();
+    } on FirebaseException catch (error) {
+      debugPrint('FCM token is not available yet: $error');
+      return;
+    }
     if (token == null || token.trim().isEmpty) {
       return;
     }
@@ -117,6 +161,7 @@ class PushNotificationService {
         userId: userId,
         fcmId: token,
       );
+      debugPrint('FCM token synced successfully.');
     } catch (error) {
       debugPrint('Could not sync FCM token: $error');
     }
@@ -124,7 +169,11 @@ class PushNotificationService {
 
   Future<void> _initializeLocalNotifications() async {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const settings = InitializationSettings(android: android);
+    const darwin = DarwinInitializationSettings();
+    const settings = InitializationSettings(
+      android: android,
+      iOS: darwin,
+    );
 
     await _localNotifications.initialize(
       settings,
@@ -147,8 +196,8 @@ class PushNotificationService {
       },
     );
 
-    final androidPlugin = _localNotifications
-        .resolvePlatformSpecificImplementation<
+    final androidPlugin =
+        _localNotifications.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
     await androidPlugin?.createNotificationChannel(_defaultChannel);
   }
@@ -177,6 +226,7 @@ class PushNotificationService {
           importance: Importance.high,
           priority: Priority.high,
         ),
+        iOS: DarwinNotificationDetails(),
       ),
       payload: jsonEncode(_messagePayload(message)),
     );

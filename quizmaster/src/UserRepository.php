@@ -80,6 +80,23 @@ final class UserRepository
         );
     }
 
+    public function updateFcmId(int $userId, string $fcmId): bool
+    {
+        $existingUser = $this->db->fetchOne(
+            "SELECT id FROM users WHERE id={$userId} LIMIT 1"
+        );
+        if ($existingUser === null) {
+            return false;
+        }
+
+        $fcmId = $this->db->escape($fcmId);
+        $this->db->execute(
+            "UPDATE users SET fcm_id='{$fcmId}' WHERE id={$userId}"
+        );
+
+        return true;
+    }
+
     public function getCoinScore(int $userId): ?array
     {
         $user = $this->db->fetchOne("SELECT coins FROM users WHERE id={$userId} LIMIT 1");
