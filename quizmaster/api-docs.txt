@@ -1,0 +1,400 @@
+/*
+	API v7.0.7
+	Quiz Online - WRTeam.in 
+	WRTeam Developers
+*/
+
+API URL -->> 
+	https://quizdemo.wrteam.in/api-v2.php  - (all APIs in one file only)
+
+API methods
+-------------------------
+  1. get_languages()
+  2. get_categories_by_language()
+  3. get_categories()
+  4. get_subcategory_by_maincategory()
+  5. get_questions_by_category()
+  6. get_questions_by_subcategory()
+  7. get_questions_by_level()
+  8. get_questions_by_type()
+  9. get_questions_for_self_challenge()
+  10. get_random_questions()
+  11. get_random_questions_for_computer()
+  12. report_question()
+  13. user_signup()
+  14. get_user_by_id()
+  15. update_fcm_id()
+  16. upload_profile_image()
+  17. update_profile()
+  18. set_monthly_leaderboard()
+  19. get_monthly_leaderboard()
+  20. get_datewise_leaderboard()
+  21. get_global_leaderboard()
+  22. get_system_configurations()
+  23. get_about_us()
+  24. get_privacy_policy_settings()
+  25. get_terms_conditions_settings()
+  26. get_instructions()
+  27. get_notifications()
+  28. set_battle_statistics()
+  29. get_battle_statistics()
+  30. set_users_statistics()
+  31. get_users_statistics()
+  32. set_level_data()
+  33. get_level_data()
+  34. set_bookmark()
+  35. get_bookmark()
+  36. get_daily_quiz()
+  37. get_user_coin_score()
+  38. set_user_coin_score()
+  39. get_contest()
+  40. get_questions_by_contest()
+  41. contest_update_score()
+  42. get_contest_score()
+  43. create_room()
+  44. get_question_by_room_id()
+  45. destroy_room_by_room_id()
+  46. get_public_room()
+  47. invite_friend()
+  49. get_learning()
+  50. get_questions_by_learning()
+  51. delete_user_account()
+  52. get_maths_questions()
+
+------------------------------------------
+What parameters to be Passed?  See here >>
+------------------------------------------
+
+Use POST method to pass the parameters
+
+1. get_languages()
+        access_key:6808
+	get_languages:1
+	id:1 // {optional}       
+
+2. get_categories_by_language()
+	access_key:6808
+	get_categories_by_language:1
+	language_id:1
+        type:2  //2-learning zone , 1-quiz zone
+
+3. get_categories()
+	access_key:6808
+	get_categories:1
+	id:31 //{optional}
+        type:2  //2-learning zone , 1-quiz zone
+
+4. get_subcategory_by_maincategory()
+	access_key:6808
+	get_subcategory_by_maincategory:1
+	main_id:31
+	
+5. get_questions_by_category()
+	access_key:6808
+	get_questions_by_category:1
+	category:15
+
+6. get_questions_by_subcategory()
+	access_key:6808
+	get_questions_by_subcategory:1
+	subcategory:115
+
+7. get_questions_by_level()
+        access_key:6808
+	get_questions_by_level:1
+	level:2
+	category:50 {or}
+	subcategory:98 
+	language_id:2   // {optional} 
+
+8. get_questions_by_type()
+        access_key:6808
+        get_questions_by_type:1
+        type:1  //1=normal ,2 = true/false
+        limit:10
+        language_id:2   // {optional} 
+
+
+9. get_questions_for_self_challenge()
+        access_key:6808
+        get_questions_for_self_challenge:1
+        category:115 {or}
+        subcategory:115
+        limit:10
+        language_id:2   // {optional}
+
+10. get_random_questions()
+	access_key:6808
+	get_random_questions:1
+	match_id:your_match_id
+	language_id:2   //{optional}
+        category:1      // required if battle category enable form panel
+    	
+	destroy_match:0 / 1     // 0 - don't destroy | 1 - destroy the battle
+
+11. get_random_questions_for_computer()
+	access_key:6808
+	get_random_questions_for_computer:1
+	language_id:2   //{optional}
+        category:1      // required if battle category enable form panel
+ 
+12. report_question()
+	access_key:6808
+	report_question:1
+	question_id:115
+	message: Any reporting message
+        user_id:1
+
+13. user_signup()
+	access_key:6808
+	user_signup:1
+        firebase_id : mf5FQ7MtNwdguEDMlTLNarkj4AZ2 //Firebase ID
+	name:Jaydeep Goswami
+	email:jaydeepjgiri@yahoo.com
+	profile:Image URL
+	mobile:9876543210
+	type: email / gmail / fb / mobile
+	fcm_id: xyz123654
+	refer_code:xyz123654
+	friends_code:xyz123654
+	ip_address: 191.1.0.4
+	status:1   // 1 - Active & 0 Deactive
+
+14. get_user_by_id()
+	access_key:6808
+	get_user_by_id:1
+	id:31
+
+15. update_fcm_id()
+	access_key:6808
+	update_fcm_id:1
+	user_id:1
+	fcm_id:xyzCode
+
+16. upload_profile_image()
+	access_key:6808
+	upload_profile_image:1
+	user_id:37
+	image: image file
+
+17. update_profile()
+	access_key:6808
+	update_profile:1
+        user_id:1
+	email:jaydeepjgiri@yahoo.com
+	name:Jaydeep Goswami
+	mobile:987654321
+
+18. set_monthly_leaderboard()
+	access_key:6808
+	set_monthly_leaderboard:1
+	user_id:10
+	score:100
+
+19. get_monthly_leaderboard()
+	access_key:6808
+	get_monthly_leaderboard:1
+	date:2019-02-01		// use date format = YYYY-MM-DD
+	limit:10            // {optional} - Number of records per page
+	offset:0            // {optional} - starting position
+	user_id:54 
+
+20. get_datewise_leaderboard()
+	access_key:6808
+	get_datewise_leaderboard:1
+	from:2019-06-01		// use date format = YYYY-MM-DD
+	to:2019-06-07		// use date format = YYYY-MM-DD
+        offset:0                // {optional} - Starting position
+        limit:20                // {optional} - number of records per page
+	user_id:25			// to get current user's rank (optional) ( login user_id )
+
+21. get_global_leaderboard()
+	access_key:6808
+	get_global_leaderboard:1
+	limit:10            // {optional} - Number of records per page
+	offset:0            // {optional} - starting position
+	user_id:25		// to get current user's rank (optional) ( login user_id )
+
+22. get_system_configurations()
+	access_key:6808
+	get_system_configurations:1
+
+23. get_about_us()
+	access_key:6808
+	get_about_us:1
+
+24. get_privacy_policy_settings()
+	access_key:6808
+	privacy_policy_settings:1
+
+25. get_terms_conditions_settings()
+	access_key:6808
+	get_terms_conditions_settings:1
+
+26. get_instructions()
+        access_key:6808
+        get_instructions:1
+
+27. get_notifications()
+	access_key:6808
+	get_notifications:1
+	sort:id / users / type // {optional} 
+	order:DESC / ASC // {optional} 
+	offset:0    // {optional} - Starting position
+	limit:20    // {optional} - number of records per page
+
+28. set_battle_statistics()
+	access_key:6808
+	set_battle_statistics:1
+	user_id1:709 
+	user_id2:710
+	winner_id:710
+	is_drawn:0 / 1 (0->no_drawn,1->drawn)
+
+29. get_battle_statistics()
+	access_key:6808
+	get_battle_statistics:1
+	user_id:12
+	sort:id / is_drawn / winner_id // {optional} 
+	order:DESC / ASC // {optional} 
+	offset:0    // {optional} - Starting position
+	limit:20    // {optional} - number of records per page
+
+30. set_users_statistics()
+	access_key:6808
+	set_users_statistics:1
+	user_id:10
+	questions_answered:100
+	correct_answers:10
+	category_id:1 //(id of category which user played) 
+	ratio:50 // (In percenatge)
+	coins:20 // {optional}
+
+31. get_users_statistics()
+	access_key:6808
+	get_users_statistics:1
+	user_id:31
+
+32. set_level_data()
+        access_key:6808
+        set_level_data:1
+        user_id:10
+        category:1
+        subcategory:2
+        level:1
+
+33. get_level_data()
+        access_key:6808
+        get_level_data:1
+        user_id:10
+        category:1
+        subcategory:2
+
+34. set_bookmark()
+        access_key:6808
+        set_bookmark:1
+        user_id:2
+        question_id:11
+        status:1   //1-bookmark,0-unmark
+
+35. get_bookmark()
+        access_key:6808
+        get_bookmark:1
+        user_id:2  
+
+36. get_daily_quiz() 
+        access_key:6808
+        get_daily_quiz:1
+        language_id:2   // {optional}
+        user_id:1
+
+37. get_user_coin_score() //get user coins and score
+        access_key:6808
+        get_user_coin_score:1
+        user_id:31
+
+38. set_user_coin_score()
+        access_key:6808
+        set_user_coin_score:1
+        user_id:31
+        coins:10      //if deduct coin than set with minus sign -2
+        score:2    
+
+39. get_contest()
+        access_key:6808
+        get_contest:1
+        user_id:1
+
+40. get_questions_by_contest()
+        access_key:6808
+        get_questions_by_contest:1
+        contest_id:5
+
+41. contest_update_score()
+        access_key:6808
+        contest_update_score:1
+        user_id:33
+        contest_id:6
+        questions_attended:10
+        correct_answers:8
+        score:8
+
+42. get_contest_leaderboard()
+        access_key:6808
+        get_contest_leaderboard:1
+        contest_id:6
+        user_id:54 // (when show my quiz rank) (optional)
+
+43. create_room()
+        access_key:6808
+        create_room:1
+        user_id:1
+        room_id:1
+        room_type:public / private
+        language_id:2   //{optional}
+        category:1      // required if room category enable form panel
+        no_of_que:10
+
+44. get_question_by_room_id()
+        access_key:6808
+        get_question_by_room_id:1
+        room_id:1
+
+45. destroy_room_by_room_id()
+        access_key:6808
+        destroy_room_by_room_id:1
+        room_id:1
+
+46. get_public_room()
+        access_key:6808
+        get_public_room:1
+
+47. invite_friend()
+        access_key:6808
+        invite_friend:1
+        user_id:1
+        room_id:1
+        invited_id:2
+        room_key: your room key
+
+49. get_learning()
+        access_key:6808
+        get_learning:1
+        category:31
+
+50. get_questions_by_learning()
+        access_key:6808
+        get_questions_by_learning:1
+        learning_id:1
+
+51. delete_user_account()
+        access_key:6808
+        delete_user_account:1
+        user_id:1
+
+52. get_maths_questions()
+        access_key:6808
+        get_maths_questions:1
+        language_id:2   // {optional}
+        category:1 {or}
+        subcategory:1

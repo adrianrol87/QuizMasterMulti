@@ -1,0 +1,70 @@
+<?php
+include_once('jwt.php');
+include_once('crud.php');
+
+function generate_token() {
+    $jwt = new JWT();
+    $payload = [
+        'iat' => time(), /* issued at time */
+        'iss' => 'quiz',
+        'exp' => time() + (30 * 60 * 60), /* expires after 1 minute */
+        'sub' => 'quiz Authentication'
+    ];
+    $token = $jwt::encode($payload, JWT_SECRET_KEY);
+    print_r(json_encode($token));
+}
+// generate_token();
+// $token = generate_token();
+// print_r($token);
+
+function verify_token() {
+    $jwt = new JWT();
+   
+    try {
+        $token = $jwt->getBearerToken();
+    } catch (Exception $e) {
+        $response['error'] = "true";
+        $response['message'] = $e->getMessage();
+        print_r(json_encode($response));
+        return false;
+    }
+    if (!empty($token)) {
+        try {
+            // JWT::$leeway = 60;
+            $payload = $jwt->decode($token, JWT_SECRET_KEY, ['HS256']);
+            
+            // Check if payload is false (expired token)
+            if ($payload === false) {
+                $response['error'] = "true";
+                $response['message'] = 'Token expired';
+                print_r(json_encode($response));
+                return false;
+            }
+            
+            if (!isset($payload->iss) || $payload->iss != 'quiz') {
+                $response['error'] = "true";
+                $response['message'] = 'Invalid Hash';
+                print_r(json_encode($response));
+                return false;
+            } else {
+                return true;
+            }
+        } catch (Exception $e) {
+            // Enhanced error logging for debugging
+            $error_message = $e->getMessage();
+            error_log("JWT Verification Failed: " . $error_message);
+            
+            $response['error'] = "true";
+            $response['message'] = $error_message;
+            print_r(json_encode($response));
+            return false;
+        }
+    } else {
+        $response['error'] = "true";
+        $response['message'] = "Unauthorized access not allowed";
+        print_r(json_encode($response));
+        return false;
+    }
+}
+
+?>

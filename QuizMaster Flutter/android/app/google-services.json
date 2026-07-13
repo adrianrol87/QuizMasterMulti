@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "854019545183",
+    "project_id": "quizmaster-16ec6",
+    "storage_bucket": "quizmaster-16ec6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:854019545183:android:4f5bf5440d52122687e3ea",
+        "android_client_info": {
+          "package_name": "com.adrianrol87.quizmaster"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "854019545183-s440q050gbet70gneqjv9abb4l3oclhh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.adrianrol87.quizmaster",
+            "certificate_hash": "9f69906915a9e5053333843ee9e20eb57f5691de"
+          }
+        },
+        {
+          "client_id": "854019545183-j8sd7oertdm0ufdsjns408cqd54ipg5d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCpTCvgcLY4CjFksJ1A83INpqtBcdxbe_U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "854019545183-j8sd7oertdm0ufdsjns408cqd54ipg5d.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "854019545183-0o6mhromcf4sc8rrj3lv831oq4igskkn.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.adrianrol87.quizmaster"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
