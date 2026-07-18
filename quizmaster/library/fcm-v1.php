@@ -113,11 +113,25 @@ function fcm_get_access_token()
     );
 }
 
-function fcm_send_v1_message($deviceToken, $payload)
+function fcm_send_v1_message($deviceToken, $payload, $deliveryPreferences = array())
 {
     $auth = fcm_get_access_token();
     $accessToken = $auth['access_token'];
     $projectId = $auth['project_id'];
+
+    $soundEnabled = !isset($deliveryPreferences['sound_enabled'])
+        || $deliveryPreferences['sound_enabled'] === true;
+    $vibrationEnabled = !isset($deliveryPreferences['vibration_enabled'])
+        || $deliveryPreferences['vibration_enabled'] === true;
+    if ($soundEnabled && $vibrationEnabled) {
+        $androidChannel = 'default_channel';
+    } elseif ($soundEnabled) {
+        $androidChannel = 'sound_only_channel';
+    } elseif ($vibrationEnabled) {
+        $androidChannel = 'vibration_only_channel';
+    } else {
+        $androidChannel = 'silent_channel';
+    }
 
     $message = array(
         'message' => array(
@@ -135,16 +149,27 @@ function fcm_send_v1_message($deviceToken, $payload)
                 'language_id' => (string) $payload['language_id'],
                 'maxlevel' => (string) $payload['maxlevel'],
                 'no_of' => (string) $payload['no_of'],
-                'category_type' => (string) $payload['category_type']
+                'category_type' => (string) $payload['category_type'],
+                'notification_category' => (string) ($payload['notification_category'] ?? 'general')
             ),
             'android' => array(
                 'priority' => 'high',
                 'notification' => array(
-                    'channel_id' => 'default_channel'
+                    'channel_id' => $androidChannel,
+                    'default_vibrate_timings' => $vibrationEnabled
                 )
             )
         )
     );
+
+    if ($soundEnabled) {
+        $message['message']['android']['notification']['sound'] = 'default';
+        $message['message']['apns'] = array(
+            'payload' => array(
+                'aps' => array('sound' => 'default')
+            )
+        );
+    }
 
     if (!empty($payload['image']) && $payload['image'] !== 'no_image') {
         $message['message']['android']['notification']['image'] = $payload['image'];

@@ -193,9 +193,9 @@ class _SubcategoryScreenState extends State<SubcategoryScreen> {
         title: Text(strings.text('unlockPremiumTitle')),
         content: Text(
           strings.text('unlockPremiumBody').replaceFirst(
-            '{coins}',
-            '${widget.category.amount}',
-          ),
+                '{coins}',
+                '${widget.category.amount}',
+              ),
         ),
         actions: [
           TextButton(
@@ -206,9 +206,9 @@ class _SubcategoryScreenState extends State<SubcategoryScreen> {
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(
               strings.text('unlockForCoinsAction').replaceFirst(
-                '{coins}',
-                '${widget.category.amount}',
-              ),
+                    '{coins}',
+                    '${widget.category.amount}',
+                  ),
             ),
           ),
         ],
@@ -264,11 +264,11 @@ class _SubcategoryScreenState extends State<SubcategoryScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
+      backgroundColor: AppTheme.pageBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: AppTheme.ink,
+        foregroundColor: AppTheme.textColor(context),
         title: Text(
           widget.category.title,
           style: theme.textTheme.titleLarge?.copyWith(
@@ -440,9 +440,9 @@ class _CategoryHeroCard extends StatelessWidget {
                   child: Text(
                     category.isPremium && !isUnlocked
                         ? strings.text('unlockPremiumBody').replaceFirst(
-                            '{coins}',
-                            '${category.amount}',
-                          )
+                              '{coins}',
+                              '${category.amount}',
+                            )
                         : strings.text('chooseSubcategoryBody'),
                     style: const TextStyle(
                       color: Colors.white,
@@ -467,9 +467,9 @@ class _CategoryHeroCard extends StatelessWidget {
                   isUnlocking
                       ? strings.text('saving')
                       : strings.text('unlockForCoinsAction').replaceFirst(
-                          '{coins}',
-                          '${category.amount}',
-                        ),
+                            '{coins}',
+                            '${category.amount}',
+                          ),
                 ),
               ),
             ),
@@ -523,7 +523,9 @@ class _PremiumLockedCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            strings.text('unlockPremiumBody').replaceFirst('{coins}', '$amount'),
+            strings
+                .text('unlockPremiumBody')
+                .replaceFirst('{coins}', '$amount'),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: const Color(0xFF5B6B7C),
                   height: 1.4,
@@ -547,9 +549,9 @@ class _PremiumLockedCard extends StatelessWidget {
                 isUnlocking
                     ? strings.text('saving')
                     : strings.text('unlockForCoinsAction').replaceFirst(
-                        '{coins}',
-                        '$amount',
-                      ),
+                          '{coins}',
+                          '$amount',
+                        ),
               ),
             ),
           ),
@@ -792,7 +794,8 @@ class _SubcategoryCard extends StatelessWidget {
                     runSpacing: 8,
                     children: [
                       _StatChip(
-                        label: '${item.questionCount} ${strings.text('questions')}',
+                        label:
+                            '${item.questionCount} ${strings.text('questions')}',
                       ),
                       _StatChip(
                         label:
@@ -954,11 +957,11 @@ class _LevelSelectScreenState extends State<_LevelSelectScreen> {
     final strings = AppStrings(widget.locale);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
+      backgroundColor: AppTheme.pageBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: AppTheme.ink,
+        foregroundColor: AppTheme.textColor(context),
         title: Text(
           widget.title,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -1016,7 +1019,8 @@ class _LevelSelectScreenState extends State<_LevelSelectScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
-                        onPressed: () => Navigator.of(context).pop(widget.unlockedLevel),
+                        onPressed: () =>
+                            Navigator.of(context).pop(widget.unlockedLevel),
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: widget.category.color,
@@ -1053,14 +1057,17 @@ class _LevelSelectScreenState extends State<_LevelSelectScreen> {
 
                     return InkWell(
                       borderRadius: BorderRadius.circular(22),
-                      onTap: isLocked ? null : () => Navigator.of(context).pop(level),
+                      onTap: isLocked
+                          ? null
+                          : () => Navigator.of(context).pop(level),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 180),
                         decoration: BoxDecoration(
                           color: isLocked
                               ? const Color(0xFFF4F7FB)
                               : isCurrent
-                                  ? widget.category.color.withValues(alpha: 0.12)
+                                  ? widget.category.color
+                                      .withValues(alpha: 0.12)
                                   : Colors.white,
                           borderRadius: BorderRadius.circular(22),
                           border: Border.all(
@@ -1099,8 +1106,13 @@ class _LevelSelectScreenState extends State<_LevelSelectScreen> {
                             Text(
                               '${strings.text('levelLabel')} $level',
                               textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    color: isLocked ? const Color(0xFF7A8DA2) : AppTheme.ink,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(
+                                    color: isLocked
+                                        ? const Color(0xFF7A8DA2)
+                                        : AppTheme.ink,
                                     fontWeight: FontWeight.w900,
                                   ),
                             ),
@@ -1112,7 +1124,10 @@ class _LevelSelectScreenState extends State<_LevelSelectScreen> {
                                       ? strings.text('levelCurrentLabel')
                                       : strings.text('levelCompletedLabel'),
                               textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
                                     color: isLocked
                                         ? const Color(0xFF7A8DA2)
                                         : widget.category.color,

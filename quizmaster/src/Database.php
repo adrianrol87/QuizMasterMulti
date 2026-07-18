@@ -59,4 +59,23 @@ final class Database
     {
         return (int) $this->connection->insert_id;
     }
+
+    public function beginTransaction(): void
+    {
+        if (!$this->connection->begin_transaction()) {
+            throw new RuntimeException('Could not start database transaction.');
+        }
+    }
+
+    public function commit(): void
+    {
+        if (!$this->connection->commit()) {
+            throw new RuntimeException('Could not commit database transaction.');
+        }
+    }
+
+    public function rollback(): void
+    {
+        $this->connection->rollback();
+    }
 }

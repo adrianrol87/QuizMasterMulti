@@ -8,11 +8,11 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../../core/ads/quiz_ad_service.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/network/php_api_client.dart';
-import '../../../core/purchases/quiz_purchase_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/models/app_user.dart';
 import '../../quiz/data/quiz_result_repository.dart';
 import '../../shop/presentation/coin_shop_sheet.dart';
+import '../../shop/presentation/remove_ads_screen.dart';
 import '../data/word_search_repository.dart';
 
 class WordSearchPreviewScreen extends StatelessWidget {
@@ -39,8 +39,8 @@ class WordSearchPreviewScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final repository =
-        wordSearchRepository ?? RemoteWordSearchRepository(apiClient: PhpApiClient());
+    final repository = wordSearchRepository ??
+        RemoteWordSearchRepository(apiClient: PhpApiClient());
 
     if (initialCategory != null) {
       return _WordSearchLevelsScreen(
@@ -82,10 +82,12 @@ class _WordSearchCategoriesScreen extends StatefulWidget {
   final String? initialCategoryId;
 
   @override
-  State<_WordSearchCategoriesScreen> createState() => _WordSearchCategoriesScreenState();
+  State<_WordSearchCategoriesScreen> createState() =>
+      _WordSearchCategoriesScreenState();
 }
 
-class _WordSearchCategoriesScreenState extends State<_WordSearchCategoriesScreen> {
+class _WordSearchCategoriesScreenState
+    extends State<_WordSearchCategoriesScreen> {
   late Future<List<WordSearchCategory>> _future;
   late AppUser? _currentUser;
   String _query = '';
@@ -93,7 +95,8 @@ class _WordSearchCategoriesScreenState extends State<_WordSearchCategoriesScreen
 
   String get _languageId => widget.locale.languageCode == 'es' ? '1' : '2';
   bool get _isSpanish => widget.locale.languageCode == 'es';
-  String _friendlyError(Object error) => _wordSearchFriendlyError(error, _isSpanish);
+  String _friendlyError(Object error) =>
+      _wordSearchFriendlyError(error, _isSpanish);
 
   @override
   void initState() {
@@ -124,7 +127,9 @@ class _WordSearchCategoriesScreenState extends State<_WordSearchCategoriesScreen
 
           if (snapshot.hasError) {
             return _MessageState(
-              title: _isSpanish ? 'No se pudieron cargar las categorias' : 'Could not load categories',
+              title: _isSpanish
+                  ? 'No se pudieron cargar las categorias'
+                  : 'Could not load categories',
               subtitle: _friendlyError(snapshot.error!),
               onRetry: () {
                 setState(() {
@@ -140,7 +145,9 @@ class _WordSearchCategoriesScreenState extends State<_WordSearchCategoriesScreen
           final categories = snapshot.data ?? const <WordSearchCategory>[];
           if (categories.isEmpty) {
             return _MessageState(
-              title: _isSpanish ? 'No hay categorias de sopa de letras' : 'No word search categories yet',
+              title: _isSpanish
+                  ? 'No hay categorias de sopa de letras'
+                  : 'No word search categories yet',
               subtitle: _isSpanish
                   ? 'Importa niveles desde el admin para empezar a probar este modo.'
                   : 'Import levels from the admin panel to start testing this mode.',
@@ -151,7 +158,8 @@ class _WordSearchCategoriesScreenState extends State<_WordSearchCategoriesScreen
           if (!_didOpenInitialCategory &&
               initialCategoryId != null &&
               initialCategoryId.isNotEmpty) {
-            final matchingCategory = categories.where((item) => item.id == initialCategoryId);
+            final matchingCategory =
+                categories.where((item) => item.id == initialCategoryId);
             if (matchingCategory.isNotEmpty) {
               _didOpenInitialCategory = true;
               WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -164,7 +172,8 @@ class _WordSearchCategoriesScreenState extends State<_WordSearchCategoriesScreen
           }
 
           final filteredCategories = categories
-              .where((item) => item.title.toLowerCase().contains(_query.toLowerCase()))
+              .where((item) =>
+                  item.title.toLowerCase().contains(_query.toLowerCase()))
               .toList();
 
           return Padding(
@@ -187,7 +196,8 @@ class _WordSearchCategoriesScreenState extends State<_WordSearchCategoriesScreen
                     },
                     decoration: InputDecoration(
                       icon: const Icon(Icons.search_rounded),
-                      hintText: _isSpanish ? 'Buscar categoria' : 'Search category',
+                      hintText:
+                          _isSpanish ? 'Buscar categoria' : 'Search category',
                       border: InputBorder.none,
                     ),
                   ),
@@ -196,7 +206,8 @@ class _WordSearchCategoriesScreenState extends State<_WordSearchCategoriesScreen
                 Expanded(
                   child: GridView.builder(
                     itemCount: filteredCategories.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       mainAxisSpacing: 14,
                       crossAxisSpacing: 14,
@@ -244,7 +255,9 @@ class _WordSearchCategoriesScreenState extends State<_WordSearchCategoriesScreen
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(_isSpanish ? 'Desbloquear categoria premium' : 'Unlock premium category'),
+        title: Text(_isSpanish
+            ? 'Desbloquear categoria premium'
+            : 'Unlock premium category'),
         content: Text(
           (_isSpanish
                   ? 'Gasta {coins} monedas para desbloquear esta categoria y dejarla disponible para este usuario.'
@@ -259,7 +272,9 @@ class _WordSearchCategoriesScreenState extends State<_WordSearchCategoriesScreen
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(
-              (_isSpanish ? 'Desbloquear por {coins} monedas' : 'Unlock for {coins} coins')
+              (_isSpanish
+                      ? 'Desbloquear por {coins} monedas'
+                      : 'Unlock for {coins} coins')
                   .replaceFirst('{coins}', '${category.amount}'),
             ),
           ),
@@ -316,7 +331,8 @@ class _WordSearchCategoriesScreenState extends State<_WordSearchCategoriesScreen
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -338,7 +354,8 @@ class _WordSearchLevelsScreen extends StatefulWidget {
   final QuizResultRepository quizResultRepository;
 
   @override
-  State<_WordSearchLevelsScreen> createState() => _WordSearchLevelsScreenState();
+  State<_WordSearchLevelsScreen> createState() =>
+      _WordSearchLevelsScreenState();
 }
 
 class _WordSearchLevelsScreenState extends State<_WordSearchLevelsScreen> {
@@ -354,7 +371,8 @@ class _WordSearchLevelsScreenState extends State<_WordSearchLevelsScreen> {
 
   String get _languageId => widget.locale.languageCode == 'es' ? '1' : '2';
   bool get _isSpanish => widget.locale.languageCode == 'es';
-  String _friendlyError(Object error) => _wordSearchFriendlyError(error, _isSpanish);
+  String _friendlyError(Object error) =>
+      _wordSearchFriendlyError(error, _isSpanish);
 
   @override
   void initState() {
@@ -430,7 +448,8 @@ class _WordSearchLevelsScreenState extends State<_WordSearchLevelsScreen> {
 
     if (result.openNextLevel) {
       final nextLevelNumber = level.levelNumber + 1;
-      final nextLevel = allLevels.where((item) => item.levelNumber == nextLevelNumber);
+      final nextLevel =
+          allLevels.where((item) => item.levelNumber == nextLevelNumber);
       if (nextLevel.isNotEmpty) {
         final refreshedProgress = await widget.repository.fetchProgress(
           userId: _currentUser?.id ?? '',
@@ -463,7 +482,9 @@ class _WordSearchLevelsScreenState extends State<_WordSearchLevelsScreen> {
 
           if (snapshot.hasError) {
             return _MessageState(
-              title: _isSpanish ? 'No se pudieron cargar los niveles' : 'Could not load levels',
+              title: _isSpanish
+                  ? 'No se pudieron cargar los niveles'
+                  : 'Could not load levels',
               subtitle: _friendlyError(snapshot.error!),
               onRetry: () {
                 setState(() {
@@ -475,7 +496,8 @@ class _WordSearchLevelsScreenState extends State<_WordSearchLevelsScreen> {
 
           final payload = snapshot.data;
           final levels = payload?.levels ?? const <WordSearchLevel>[];
-          final progress = payload?.progress ?? WordSearchProgress.empty(widget.category.id);
+          final progress =
+              payload?.progress ?? WordSearchProgress.empty(widget.category.id);
 
           if (!_isUnlocked) {
             return Padding(
@@ -521,7 +543,8 @@ class _WordSearchLevelsScreenState extends State<_WordSearchLevelsScreen> {
                           (_isSpanish
                                   ? 'Gasta {coins} monedas para dejarla disponible para este usuario.'
                                   : 'Spend {coins} coins to keep it available for this user.')
-                              .replaceFirst('{coins}', '${widget.category.amount}'),
+                              .replaceFirst(
+                                  '{coins}', '${widget.category.amount}'),
                           style: const TextStyle(
                             color: Color(0xFF5D7188),
                             fontSize: 15,
@@ -533,18 +556,27 @@ class _WordSearchLevelsScreenState extends State<_WordSearchLevelsScreen> {
                           spacing: 10,
                           runSpacing: 10,
                           children: [
-                            _HeroPill(label: '${_isSpanish ? 'Monedas' : 'Coins'}: ${_currentUser?.coins ?? 0}'),
-                            _HeroPill(label: '${_isSpanish ? 'Premium' : 'Premium'}: ${widget.category.amount}'),
+                            _HeroPill(
+                                label:
+                                    '${_isSpanish ? 'Monedas' : 'Coins'}: ${_currentUser?.coins ?? 0}'),
+                            _HeroPill(
+                                label:
+                                    '${_isSpanish ? 'Premium' : 'Premium'}: ${widget.category.amount}'),
                           ],
                         ),
                         const SizedBox(height: 18),
                         SizedBox(
                           width: double.infinity,
                           child: FilledButton(
-                            onPressed: _isUnlockingCategory ? null : _promptCategoryUnlock,
+                            onPressed: _isUnlockingCategory
+                                ? null
+                                : _promptCategoryUnlock,
                             child: Text(
-                              (_isSpanish ? 'Desbloquear por {coins} monedas' : 'Unlock for {coins} coins')
-                                  .replaceFirst('{coins}', '${widget.category.amount}'),
+                              (_isSpanish
+                                      ? 'Desbloquear por {coins} monedas'
+                                      : 'Unlock for {coins} coins')
+                                  .replaceFirst(
+                                      '{coins}', '${widget.category.amount}'),
                             ),
                           ),
                         ),
@@ -592,7 +624,8 @@ class _WordSearchLevelsScreenState extends State<_WordSearchLevelsScreen> {
                   child: GridView.builder(
                     controller: _scrollController,
                     itemCount: levels.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: _crossAxisCount,
                       mainAxisSpacing: _spacing,
                       crossAxisSpacing: _spacing,
@@ -602,7 +635,8 @@ class _WordSearchLevelsScreenState extends State<_WordSearchLevelsScreen> {
                       final level = levels[index];
                       final unlocked = progress.isUnlocked(level.levelNumber);
                       final completed = progress.isCompleted(level.levelNumber);
-                      final isCurrent = level.levelNumber == progress.nextUnlockedLevel;
+                      final isCurrent =
+                          level.levelNumber == progress.nextUnlockedLevel;
                       final bestTime = progress.bestTimes[level.levelNumber];
 
                       return _LevelCard(
@@ -612,7 +646,9 @@ class _WordSearchLevelsScreenState extends State<_WordSearchLevelsScreen> {
                         completed: completed,
                         isCurrent: isCurrent,
                         bestTimeSeconds: bestTime,
-                        onTap: unlocked ? () => _openLevel(level, progress, levels) : null,
+                        onTap: unlocked
+                            ? () => _openLevel(level, progress, levels)
+                            : null,
                       );
                     },
                   ),
@@ -656,7 +692,9 @@ class _WordSearchLevelsScreenState extends State<_WordSearchLevelsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(_isSpanish ? 'Desbloquear categoria premium' : 'Unlock premium category'),
+        title: Text(_isSpanish
+            ? 'Desbloquear categoria premium'
+            : 'Unlock premium category'),
         content: Text(
           (_isSpanish
                   ? 'Gasta {coins} monedas para desbloquear esta categoria y dejarla disponible para este usuario.'
@@ -671,7 +709,9 @@ class _WordSearchLevelsScreenState extends State<_WordSearchLevelsScreen> {
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(
-              (_isSpanish ? 'Desbloquear por {coins} monedas' : 'Unlock for {coins} coins')
+              (_isSpanish
+                      ? 'Desbloquear por {coins} monedas'
+                      : 'Unlock for {coins} coins')
                   .replaceFirst('{coins}', '${widget.category.amount}'),
             ),
           ),
@@ -692,7 +732,8 @@ class _WordSearchLevelsScreenState extends State<_WordSearchLevelsScreen> {
         userId: user.id,
         categoryId: widget.category.id,
       );
-      final updatedUser = user.copyWith(coins: user.coins - widget.category.amount);
+      final updatedUser =
+          user.copyWith(coins: user.coins - widget.category.amount);
       if (!mounted) {
         return;
       }
@@ -711,7 +752,8 @@ class _WordSearchLevelsScreenState extends State<_WordSearchLevelsScreen> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -868,6 +910,7 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
       });
     });
   }
+
   Future<void> _showTimeoutDialog() async {
     if (!mounted) {
       return;
@@ -966,49 +1009,28 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
   }
 
   Future<void> _removeAds() async {
-    final strings = AppStrings(widget.locale);
-
-    if (!QuizPurchaseService.instance.isConfigured) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(strings.text('removeAdsNotReady'))),
-      );
+    final purchased = await RemoveAdsScreen.show(
+      context,
+      locale: widget.locale,
+    );
+    if (!mounted || !purchased) {
       return;
     }
 
-    try {
-      final purchased = await QuizPurchaseService.instance.purchaseRemoveAds();
-      if (!mounted) {
-        return;
-      }
-
-      if (!purchased) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(strings.text('removeAdsPurchaseFailed'))),
-        );
-        return;
-      }
-
-      QuizAdService.instance.setAdsRemoved(true);
-      _bannerAd?.dispose();
-      setState(() {
-        _bannerAd = null;
-        _isBannerReady = false;
-        _adsRemoved = true;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(strings.text('removeAdsPurchased'))),
-      );
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(strings.text('removeAdsPurchaseFailed'))),
-      );
-    }
+    QuizAdService.instance.setAdsRemoved(true);
+    _bannerAd?.dispose();
+    setState(() {
+      _bannerAd = null;
+      _isBannerReady = false;
+      _adsRemoved = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          AppStrings(widget.locale).text('removeAdsPurchased'),
+        ),
+      ),
+    );
   }
 
   void _onCellTap(int row, int col) {
@@ -1038,7 +1060,8 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
 
         if (point == last) {
           _selection.removeLast();
-        } else if (_selection.length == 1 || _canExtendSelection(last, point, direction)) {
+        } else if (_selection.length == 1 ||
+            _canExtendSelection(last, point, direction)) {
           _selection.add(point);
         } else {
           _selection
@@ -1051,7 +1074,8 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
     _tryResolveSelection();
   }
 
-  void _onGridPanStart(Offset localPosition, int rows, int cols, Size boardSize) {
+  void _onGridPanStart(
+      Offset localPosition, int rows, int cols, Size boardSize) {
     if (_isCompleted) {
       return;
     }
@@ -1073,7 +1097,8 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
     });
   }
 
-  void _onGridPanUpdate(Offset localPosition, int rows, int cols, Size boardSize) {
+  void _onGridPanUpdate(
+      Offset localPosition, int rows, int cols, Size boardSize) {
     if (_isCompleted || _selection.isEmpty) {
       return;
     }
@@ -1156,8 +1181,10 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
     final spanWidth = cellWidth + _gridSpacing;
     final spanHeight = cellHeight + _gridSpacing;
 
-    final col = (((localPosition.dx - (cellWidth / 2)) / spanWidth).round()).clamp(0, cols - 1);
-    final row = (((localPosition.dy - (cellHeight / 2)) / spanHeight).round()).clamp(0, rows - 1);
+    final col = (((localPosition.dx - (cellWidth / 2)) / spanWidth).round())
+        .clamp(0, cols - 1);
+    final row = (((localPosition.dy - (cellHeight / 2)) / spanHeight).round())
+        .clamp(0, rows - 1);
 
     return _CellPoint(row, col);
   }
@@ -1202,7 +1229,8 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
     return _CellPoint(row, col);
   }
 
-  bool _canExtendSelection(_CellPoint last, _CellPoint next, _CellPoint direction) {
+  bool _canExtendSelection(
+      _CellPoint last, _CellPoint next, _CellPoint direction) {
     if (_selection.any((point) => point == next)) {
       return false;
     }
@@ -1223,7 +1251,8 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
         continue;
       }
 
-      if (_matchesPath(_selection, placedWord.path) || _matchesPath(_selection, placedWord.path.reversed.toList())) {
+      if (_matchesPath(_selection, placedWord.path) ||
+          _matchesPath(_selection, placedWord.path.reversed.toList())) {
         setState(() {
           _foundWords.add(placedWord.word);
           for (final point in placedWord.path) {
@@ -1275,14 +1304,17 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
         bestTimeSeconds: elapsed,
       );
 
-      if (!widget.wasPreviouslyCompleted && widget.level.rewardCoins > 0) {
-        await widget.quizResultRepository.addBonusCoins(
-          userId: user.id,
-          coins: widget.level.rewardCoins,
-        );
+      if (!widget.wasPreviouslyCompleted) {
+        if (widget.level.rewardCoins > 0) {
+          await widget.quizResultRepository.addBonusCoins(
+            userId: user.id,
+            coins: widget.level.rewardCoins,
+          );
+        }
 
         updatedUser = user.copyWith(
           coins: user.coins + widget.level.rewardCoins,
+          score: user.score + 1,
         );
         _currentUser = updatedUser;
       }
@@ -1354,7 +1386,8 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
                               child: Container(
                                 width: 166,
                                 height: 56,
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(22),
@@ -1480,25 +1513,31 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
                                   return Expanded(
                                     child: Padding(
                                       padding: EdgeInsets.only(
-                                        bottom: row == rows - 1 ? 0 : _gridSpacing,
+                                        bottom:
+                                            row == rows - 1 ? 0 : _gridSpacing,
                                       ),
                                       child: Row(
                                         children: List.generate(cols, (col) {
                                           final point = _CellPoint(row, col);
                                           final key = point.key;
-                                          final selected = _selection.any((item) => item == point);
-                                          final correct = _correctCells.contains(key);
+                                          final selected = _selection
+                                              .any((item) => item == point);
+                                          final correct =
+                                              _correctCells.contains(key);
 
                                           return Expanded(
                                             child: Padding(
                                               padding: EdgeInsets.only(
-                                                right: col == cols - 1 ? 0 : _gridSpacing,
+                                                right: col == cols - 1
+                                                    ? 0
+                                                    : _gridSpacing,
                                               ),
                                               child: _LetterTile(
                                                 letter: _board.cells[row][col],
                                                 selected: selected,
                                                 correct: correct,
-                                                onTap: () => _onCellTap(row, col),
+                                                onTap: () =>
+                                                    _onCellTap(row, col),
                                               ),
                                             ),
                                           );
@@ -1516,8 +1555,10 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
                     const SizedBox(height: 12),
                     Center(
                       child: SizedBox(
-                        width: (_bannerAd?.size.width ?? AdSize.banner.width).toDouble(),
-                        height: (_bannerAd?.size.height ?? AdSize.banner.height).toDouble(),
+                        width: (_bannerAd?.size.width ?? AdSize.banner.width)
+                            .toDouble(),
+                        height: (_bannerAd?.size.height ?? AdSize.banner.height)
+                            .toDouble(),
                         child: _bannerAd != null && _isBannerReady
                             ? AdWidget(ad: _bannerAd!)
                             : const SizedBox.shrink(),
@@ -1543,7 +1584,8 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
                     const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(20),
@@ -1552,13 +1594,15 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
                         builder: (context, constraints) {
                           const columnCount = 3;
                           final words = _board.words;
-                          final itemsPerColumn = (words.length / columnCount).ceil();
+                          final itemsPerColumn =
+                              (words.length / columnCount).ceil();
 
                           return Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Padding(
-                                padding: const EdgeInsets.only(top: 2, right: 10),
+                                padding:
+                                    const EdgeInsets.only(top: 2, right: 10),
                                 child: RotatedBox(
                                   quarterTurns: 3,
                                   child: Text(
@@ -1566,7 +1610,8 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
                                     style: TextStyle(
                                       fontFamily: 'Mikado',
                                       fontSize: 28,
-                                      color: Colors.black.withValues(alpha: 0.18),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.18),
                                       letterSpacing: 2,
                                     ),
                                   ),
@@ -1575,23 +1620,31 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
                               Expanded(
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: List.generate(columnCount, (columnIndex) {
+                                  children:
+                                      List.generate(columnCount, (columnIndex) {
                                     final start = columnIndex * itemsPerColumn;
-                                    final end = min(start + itemsPerColumn, words.length);
-                                    final columnWords =
-                                        start >= words.length ? <_PlacedWord>[] : words.sublist(start, end);
+                                    final end = min(
+                                        start + itemsPerColumn, words.length);
+                                    final columnWords = start >= words.length
+                                        ? <_PlacedWord>[]
+                                        : words.sublist(start, end);
 
                                     return Expanded(
                                       child: Padding(
                                         padding: EdgeInsets.only(
-                                          right: columnIndex == columnCount - 1 ? 0 : 10,
+                                          right: columnIndex == columnCount - 1
+                                              ? 0
+                                              : 10,
                                         ),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: columnWords.map((item) {
-                                            final found = _foundWords.contains(item.word);
+                                            final found =
+                                                _foundWords.contains(item.word);
                                             return Padding(
-                                              padding: const EdgeInsets.only(bottom: 2),
+                                              padding: const EdgeInsets.only(
+                                                  bottom: 2),
                                               child: Text(
                                                 item.word,
                                                 style: TextStyle(
@@ -1600,8 +1653,12 @@ class _WordSearchBoardScreenState extends State<_WordSearchBoardScreen> {
                                                   height: 1.02,
                                                   color: found
                                                       ? Colors.white
-                                                      : Colors.black.withValues(alpha: 0.9),
-                                                  decoration: found ? TextDecoration.lineThrough : null,
+                                                      : Colors.black.withValues(
+                                                          alpha: 0.9),
+                                                  decoration: found
+                                                      ? TextDecoration
+                                                          .lineThrough
+                                                      : null,
                                                   decorationColor: Colors.white,
                                                   decorationThickness: 2,
                                                 ),
@@ -1679,7 +1736,8 @@ class _CategoryCard extends StatelessWidget {
                         ? Image.network(
                             category.imageUrl,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Center(
+                            errorBuilder: (context, error, stackTrace) =>
+                                Center(
                               child: Container(
                                 width: 72,
                                 height: 72,
@@ -1737,7 +1795,8 @@ class _CategoryCard extends StatelessWidget {
                     children: [
                       if (category.isPremium)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.18),
                             borderRadius: BorderRadius.circular(999),
@@ -1764,10 +1823,11 @@ class _CategoryCard extends StatelessWidget {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: (category.isPremium && !category.isPurchased
-                                      ? const Color(0xFFE74C3C)
-                                      : Colors.white)
-                                  .withValues(alpha: 0.28),
+                              color:
+                                  (category.isPremium && !category.isPurchased
+                                          ? const Color(0xFFE74C3C)
+                                          : Colors.white)
+                                      .withValues(alpha: 0.28),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -1775,7 +1835,9 @@ class _CategoryCard extends StatelessWidget {
                         ),
                         child: Icon(
                           category.isPremium
-                              ? (category.isPurchased ? Icons.check_rounded : Icons.lock_rounded)
+                              ? (category.isPurchased
+                                  ? Icons.check_rounded
+                                  : Icons.lock_rounded)
                               : Icons.arrow_forward_rounded,
                           color: Colors.white,
                           size: 17,
@@ -1979,7 +2041,9 @@ class _LevelCard extends StatelessWidget {
                             : (_isSpanish ? 'Listo' : 'Ready'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: !unlocked ? const Color(0xFF7A8DA2) : const Color(0xFF2F7FDD),
+                  color: !unlocked
+                      ? const Color(0xFF7A8DA2)
+                      : const Color(0xFF2F7FDD),
                   fontWeight: FontWeight.w700,
                   fontSize: 12,
                 ),
@@ -1997,7 +2061,9 @@ class _LevelCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 bestTimeSeconds != null
-                    ? (_isSpanish ? 'Mejor ${bestTimeSeconds}s' : 'Best ${bestTimeSeconds}s')
+                    ? (_isSpanish
+                        ? 'Mejor ${bestTimeSeconds}s'
+                        : 'Best ${bestTimeSeconds}s')
                     : '+${level.rewardCoins} ${_isSpanish ? 'monedas' : 'coins'}',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
@@ -2108,8 +2174,7 @@ class _MiniPill extends StatelessWidget {
 
 String _wordSearchFriendlyError(Object error, bool isSpanish) {
   final message = error.toString().toLowerCase();
-  final isConnectionIssue =
-      message.contains('clientexception') ||
+  final isConnectionIssue = message.contains('clientexception') ||
       message.contains('connection closed') ||
       message.contains('socketexception') ||
       message.contains('timed out') ||
@@ -2205,7 +2270,8 @@ class _LetterTile extends StatelessWidget {
             ? 'assets/images/sopa/LetraSeleccionada.png'
             : 'assets/images/sopa/FondoLetra.png';
 
-    final letterColor = (selected || correct) ? Colors.white : const Color(0xFF24405B);
+    final letterColor =
+        (selected || correct) ? Colors.white : const Color(0xFF24405B);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -2233,7 +2299,8 @@ class _LetterTile extends StatelessWidget {
                       color: letterColor,
                       shadows: [
                         Shadow(
-                          color: Colors.black.withValues(alpha: (selected || correct) ? 0.18 : 0.08),
+                          color: Colors.black.withValues(
+                              alpha: (selected || correct) ? 0.18 : 0.08),
                           blurRadius: 2,
                           offset: const Offset(0, 1),
                         ),
@@ -2303,7 +2370,8 @@ class _WordSearchWinScreenState extends State<_WordSearchWinScreen> {
             final boardWidth = constraints.maxWidth * 0.72;
             final boardHeight = constraints.maxHeight * 0.31;
             final letterCount = word.replaceAll(' ', '').length;
-            final letterSize = (boardWidth / max(letterCount, 1) / 1.42).clamp(28.0, 48.0);
+            final letterSize =
+                (boardWidth / max(letterCount, 1) / 1.42).clamp(28.0, 48.0);
 
             return Stack(
               fit: StackFit.expand,
@@ -2356,7 +2424,8 @@ class _WordSearchWinScreenState extends State<_WordSearchWinScreen> {
                                 GestureDetector(
                                   onTap: widget.onClose,
                                   child: _WinButton(
-                                    assetPath: 'assets/images/sopa/BotonClose.png',
+                                    assetPath:
+                                        'assets/images/sopa/BotonClose.png',
                                     width: buttonWidth,
                                     label: closeLabel,
                                   ),
@@ -2365,7 +2434,8 @@ class _WordSearchWinScreenState extends State<_WordSearchWinScreen> {
                                 GestureDetector(
                                   onTap: widget.onNext,
                                   child: _WinButton(
-                                    assetPath: 'assets/images/sopa/BotonNext.png',
+                                    assetPath:
+                                        'assets/images/sopa/BotonNext.png',
                                     width: buttonWidth,
                                     label: nextLabel,
                                   ),
@@ -2536,8 +2606,62 @@ class _WordSearchGenerator {
     }
 
     final alphabet = locale.languageCode == 'es'
-        ? const ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
-        : const ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+        ? const [
+            'A',
+            'B',
+            'C',
+            'D',
+            'E',
+            'F',
+            'G',
+            'H',
+            'I',
+            'J',
+            'K',
+            'L',
+            'M',
+            'N',
+            'O',
+            'P',
+            'Q',
+            'R',
+            'S',
+            'T',
+            'U',
+            'V',
+            'W',
+            'X',
+            'Y',
+            'Z'
+          ]
+        : const [
+            'A',
+            'B',
+            'C',
+            'D',
+            'E',
+            'F',
+            'G',
+            'H',
+            'I',
+            'J',
+            'K',
+            'L',
+            'M',
+            'N',
+            'O',
+            'P',
+            'Q',
+            'R',
+            'S',
+            'T',
+            'U',
+            'V',
+            'W',
+            'X',
+            'Y',
+            'Z'
+          ];
 
     for (var row = 0; row < rows; row++) {
       for (var col = 0; col < cols; col++) {

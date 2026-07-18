@@ -1,11 +1,8 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/config/backend_config.dart';
-import '../../../core/l10n/app_strings.dart';
 import '../../../core/network/php_api_client.dart';
 import '../../../core/purchases/quiz_purchase_service.dart';
 import '../../../core/ads/quiz_ad_service.dart';
@@ -57,10 +54,9 @@ class _CoinShopSheetState extends State<CoinShopSheet> {
   bool _freeRewardAvailable = true;
 
   bool get _isSpanish => widget.locale.languageCode == 'es';
-  AppStrings get _strings => AppStrings(widget.locale);
 
   late final List<_CoinShopPack> _packs = <_CoinShopPack>[
-    _CoinShopPack(
+    const _CoinShopPack(
       productId: 'rewarded_free_100',
       assetPath: 'assets/images/shop/shop1.png',
       titleEs: 'FREE',
@@ -70,47 +66,47 @@ class _CoinShopSheetState extends State<CoinShopSheet> {
       isRewardedPack: true,
     ),
     _CoinShopPack(
-      productId: BackendConfig.revenueCatCoins3000ProductId,
+      productId: BackendConfig.revenueCatCoinsTier1ProductId,
       assetPath: 'assets/images/shop/shop2.png',
       titleEs: 'BOLSILLO PRO',
       titleEn: 'ELITE POCKET',
       coinAmount: 3000,
-      fallbackPrice: '\$2.70',
+      fallbackPrice: 'MX\$19.00',
     ),
     _CoinShopPack(
-      productId: BackendConfig.revenueCatCoins5000ProductId,
+      productId: BackendConfig.revenueCatCoinsTier2ProductId,
       assetPath: 'assets/images/shop/shop3.png',
       titleEs: 'MEJOR OFERTA',
       titleEn: 'BEST DEAL',
       coinAmount: 5000,
-      fallbackPrice: '\$4.20',
+      fallbackPrice: 'MX\$29.00',
       showDealBadge: true,
       dealLabelEs: '+40%',
       dealLabelEn: '+40%',
     ),
     _CoinShopPack(
-      productId: BackendConfig.revenueCatCoins8500ProductId,
+      productId: BackendConfig.revenueCatCoinsTier3ProductId,
       assetPath: 'assets/images/shop/shop4.png',
       titleEs: 'ALCANCIA',
       titleEn: 'PIGGY BANK',
       coinAmount: 8500,
-      fallbackPrice: '\$7.15',
+      fallbackPrice: 'MX\$39.00',
     ),
     _CoinShopPack(
-      productId: BackendConfig.revenueCatCoins10500ProductId,
+      productId: BackendConfig.revenueCatCoinsTier4ProductId,
       assetPath: 'assets/images/shop/shop5.png',
       titleEs: 'BOLSILLO ELITE',
       titleEn: 'ELITE POCKET',
       coinAmount: 10500,
-      fallbackPrice: '\$11.55',
+      fallbackPrice: 'MX\$49.00',
     ),
     _CoinShopPack(
-      productId: BackendConfig.revenueCatCoins17000ProductId,
+      productId: BackendConfig.revenueCatCoinsTier5ProductId,
       assetPath: 'assets/images/shop/shop6.png',
       titleEs: 'BIG BOSS',
       titleEn: 'BIG BOSS',
       coinAmount: 17000,
-      fallbackPrice: '\$14.99',
+      fallbackPrice: 'MX\$59.00',
     ),
   ];
 
@@ -157,8 +153,8 @@ class _CoinShopSheetState extends State<CoinShopSheet> {
       final userId = widget.currentUser?.id ?? '';
       if (QuizPurchaseService.instance.isConfigured && userId.isNotEmpty) {
         await QuizPurchaseService.instance.configureForUser(userId);
-        final packages =
-            await QuizPurchaseService.instance.fetchAvailablePackagesByProductId();
+        final packages = await QuizPurchaseService.instance
+            .fetchAvailablePackagesByProductId();
         if (!mounted) {
           return;
         }
@@ -210,7 +206,8 @@ class _CoinShopSheetState extends State<CoinShopSheet> {
 
     try {
       if (pack.isRewardedPack) {
-        final rewarded = await QuizAdService.instance.showRewardedToMultiplyCoins();
+        final rewarded =
+            await QuizAdService.instance.showRewardedToMultiplyCoins();
         if (!rewarded) {
           if (mounted) {
             _showSnack(
@@ -345,8 +342,7 @@ class _CoinShopSheetState extends State<CoinShopSheet> {
                       return _CoinShopCard(
                         pack: pack,
                         locale: widget.locale,
-                        priceLabel:
-                            package?.storeProduct.priceString ??
+                        priceLabel: package?.storeProduct.priceString ??
                             pack.fallbackPrice,
                         isBusy: isBusy,
                         freeRewardAvailable: _freeRewardAvailable,
@@ -502,9 +498,7 @@ class _CoinShopCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        pack.isRewardedPack
-                            ? amountLabel
-                            : amountLabel,
+                        pack.isRewardedPack ? amountLabel : amountLabel,
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Color(0xFF3B2C1A),
@@ -528,12 +522,10 @@ class _CoinShopCard extends StatelessWidget {
                               width: double.infinity,
                               height: 44,
                               fit: BoxFit.fill,
-                              color: isDisabled
-                                  ? const Color(0xCC8F8F8F)
-                                  : null,
-                              colorBlendMode: isDisabled
-                                  ? BlendMode.modulate
-                                  : null,
+                              color:
+                                  isDisabled ? const Color(0xCC8F8F8F) : null,
+                              colorBlendMode:
+                                  isDisabled ? BlendMode.modulate : null,
                             ),
                             Text(
                               pack.isRewardedPack

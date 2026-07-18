@@ -85,6 +85,34 @@ try {
         ApiResponse::success('Account deleted successfully.');
     }
 
+    if (isset($_POST['get_referral_info'])) {
+        $userId = (int) ($_POST['user_id'] ?? 0);
+        if ($userId <= 0) {
+            ApiResponse::error('Please pass all the fields');
+        }
+
+        $data = $userRepository->getReferralInfo($userId);
+        if ($data === null) {
+            ApiResponse::error('User not found.', 404);
+        }
+        ApiResponse::success($data);
+    }
+
+    if (isset($_POST['redeem_referral_code'])) {
+        $userId = (int) ($_POST['user_id'] ?? 0);
+        $referralCode = trim((string) ($_POST['referral_code'] ?? ''));
+        if ($userId <= 0 || $referralCode === '') {
+            ApiResponse::error('Please pass all the fields');
+        }
+
+        try {
+            $data = $userRepository->redeemReferralCode($userId, $referralCode);
+            ApiResponse::success($data, 'Referral code redeemed successfully.');
+        } catch (DomainException $exception) {
+            ApiResponse::error($exception->getMessage(), 422);
+        }
+    }
+
     if (isset($_POST['get_categories_by_language'])) {
         $languageId = (int) ($_POST['language_id'] ?? 0);
         if ($languageId <= 0) {
@@ -327,6 +355,45 @@ try {
         ApiResponse::success(null, 'Question reported successfully.');
     }
 
+    if (isset($_POST['get_bookmarked_questions'])) {
+        $userId = (int) ($_POST['user_id'] ?? 0);
+        if ($userId <= 0) {
+            ApiResponse::error('Please pass all the fields');
+        }
+        ApiResponse::success($quizRepository->getBookmarkedQuestions($userId));
+    }
+
+    if (isset($_POST['get_bookmarked_question_ids'])) {
+        $userId = (int) ($_POST['user_id'] ?? 0);
+        if ($userId <= 0) {
+            ApiResponse::error('Please pass all the fields');
+        }
+        ApiResponse::success($quizRepository->getBookmarkedQuestionIds($userId));
+    }
+
+    if (isset($_POST['set_question_bookmark'])) {
+        $userId = (int) ($_POST['user_id'] ?? 0);
+        $questionId = (int) ($_POST['question_id'] ?? 0);
+        $bookmarked = ((string) ($_POST['bookmarked'] ?? '0')) === '1';
+        if ($userId <= 0 || $questionId <= 0) {
+            ApiResponse::error('Please pass all the fields');
+        }
+
+        try {
+            $saved = $quizRepository->setQuestionBookmark(
+                $userId,
+                $questionId,
+                $bookmarked,
+            );
+            ApiResponse::success(
+                ['bookmarked' => $saved ? '1' : '0'],
+                $saved ? 'Question saved.' : 'Question removed.',
+            );
+        } catch (DomainException $exception) {
+            ApiResponse::error($exception->getMessage(), 422);
+        }
+    }
+
     if (isset($_POST['user_signup'])) {
         $firebaseId = trim((string) ($_POST['firebase_id'] ?? ''));
         $type = trim((string) ($_POST['type'] ?? 'email'));
@@ -361,6 +428,28 @@ try {
             ApiResponse::error('User not found.', 404);
         }
         ApiResponse::success(null, 'FCM token updated successfully');
+    }
+
+    if (isset($_POST['get_notification_preferences'])) {
+        $userId = (int) ($_POST['user_id'] ?? 0);
+        if ($userId <= 0) {
+            ApiResponse::error('Please pass all the fields');
+        }
+        ApiResponse::success($userRepository->getNotificationPreferences($userId));
+    }
+
+    if (isset($_POST['update_notification_preferences'])) {
+        $userId = (int) ($_POST['user_id'] ?? 0);
+        if ($userId <= 0) {
+            ApiResponse::error('Please pass all the fields');
+        }
+        if (!$userRepository->updateNotificationPreferences($userId, $_POST)) {
+            ApiResponse::error('User not found.', 404);
+        }
+        ApiResponse::success(
+            $userRepository->getNotificationPreferences($userId),
+            'Notification preferences updated successfully',
+        );
     }
 
     if (isset($_POST['update_profile'])) {

@@ -11,6 +11,11 @@ class UserStatistics {
     required this.dateCreated,
     required this.name,
     required this.profileUrl,
+    required this.quizLevelsCompleted,
+    required this.wordSearchLevelsCompleted,
+    required this.wordSearchBestTimeSeconds,
+    required this.game2048LevelsCompleted,
+    required this.game2048BestMovesLeft,
   });
 
   factory UserStatistics.fromJson(Map<String, dynamic> json) {
@@ -31,6 +36,24 @@ class UserStatistics {
       dateCreated: (json['date_created'] ?? '').toString(),
       name: (json['name'] ?? '').toString(),
       profileUrl: (json['profile'] ?? '').toString(),
+      quizLevelsCompleted:
+          int.tryParse((json['quiz_levels_completed'] ?? '0').toString()) ?? 0,
+      wordSearchLevelsCompleted: int.tryParse(
+            (json['word_search_levels_completed'] ?? '0').toString(),
+          ) ??
+          0,
+      wordSearchBestTimeSeconds: int.tryParse(
+            (json['word_search_best_time_seconds'] ?? '0').toString(),
+          ) ??
+          0,
+      game2048LevelsCompleted: int.tryParse(
+            (json['game_2048_levels_completed'] ?? '0').toString(),
+          ) ??
+          0,
+      game2048BestMovesLeft: int.tryParse(
+            (json['game_2048_best_moves_left'] ?? '0').toString(),
+          ) ??
+          0,
     );
   }
 
@@ -45,6 +68,17 @@ class UserStatistics {
   final String dateCreated;
   final String name;
   final String profileUrl;
+  final int quizLevelsCompleted;
+  final int wordSearchLevelsCompleted;
+  final int wordSearchBestTimeSeconds;
+  final int game2048LevelsCompleted;
+  final int game2048BestMovesLeft;
+
+  bool get hasActivity =>
+      questionsAnswered > 0 ||
+      quizLevelsCompleted > 0 ||
+      wordSearchLevelsCompleted > 0 ||
+      game2048LevelsCompleted > 0;
 
   int get accuracyPercent {
     if (questionsAnswered <= 0) {

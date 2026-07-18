@@ -13,12 +13,16 @@ class QuizAdService {
   static const _androidTestAppId = 'ca-app-pub-3940256099942544~3347511713';
   static const _iosAppId = 'ca-app-pub-1404008250068138~9277252035';
   static const _androidTestBannerId = 'ca-app-pub-3940256099942544/6300978111';
+  static const _iosTestBannerId = 'ca-app-pub-3940256099942544/2934735716';
   static const _iosBannerId = 'ca-app-pub-1404008250068138/6832041774';
   static const _androidTestInterstitialId =
       'ca-app-pub-3940256099942544/1033173712';
+  static const _iosTestInterstitialId =
+      'ca-app-pub-3940256099942544/4411468910';
   static const _iosInterstitialId = 'ca-app-pub-1404008250068138/9983829049';
   static const _androidTestRewardedId =
       'ca-app-pub-3940256099942544/5224354917';
+  static const _iosTestRewardedId = 'ca-app-pub-3940256099942544/1712485313';
   static const _iosRewardedId = 'ca-app-pub-1404008250068138/7677798128';
 
   bool _mobileAdsInitialized = false;
@@ -29,7 +33,9 @@ class QuizAdService {
   InterstitialAd? _interstitialAd;
   RewardedAd? _rewardedAd;
   Completer<RewardedAd?>? _rewardedLoadCompleter;
+  Future<void>? _activeConfiguration;
   int _completedLevelCounter = 0;
+  int _gameReturnCounter = 0;
   bool _adsRemoved = false;
 
   static bool get isSupportedPlatform =>
@@ -49,6 +55,22 @@ class QuizAdService {
       adsEnabled && _rewardedUnitId.isNotEmpty;
 
   Future<void> configure(SystemConfig config) async {
+    final activeConfiguration = _activeConfiguration;
+    if (activeConfiguration != null) {
+      await activeConfiguration;
+      return;
+    }
+
+    final configuration = _configure(config);
+    _activeConfiguration = configuration;
+    try {
+      await configuration;
+    } finally {
+      _activeConfiguration = null;
+    }
+  }
+
+  Future<void> _configure(SystemConfig config) async {
     if (!isSupportedPlatform) {
       _adsEnabled = false;
       return;
@@ -116,8 +138,12 @@ class QuizAdService {
       request: const AdRequest(),
       size: size,
       listener: BannerAdListener(
-        onAdLoaded: (_) => onLoaded?.call(),
+        onAdLoaded: (_) {
+          debugPrint('AdMob banner loaded.');
+          onLoaded?.call();
+        },
         onAdFailedToLoad: (ad, error) {
+          debugPrint('AdMob banner failed to load: $error');
           ad.dispose();
           onFailed?.call();
         },
@@ -146,6 +172,46 @@ class QuizAdService {
       return;
     }
 
+    _interstitialAd = null;
+    final completer = Completer<void>();
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        _primeInterstitial();
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        ad.dispose();
+        _primeInterstitial();
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      },
+    );
+
+    ad.show();
+    await completer.future;
+  }
+
+  Future<void> maybeShowInterstitialAfterGameReturn() async {
+    if (!adsEnabled) {
+      return;
+    }
+
+    _gameReturnCounter += 1;
+    if (_gameReturnCounter < 3) {
+      return;
+    }
+
+    final ad = _interstitialAd;
+    if (ad == null) {
+      _primeInterstitial();
+      return;
+    }
+
+    _gameReturnCounter = 0;
     _interstitialAd = null;
     final completer = Completer<void>();
     ad.fullScreenContentCallback = FullScreenContentCallback(
@@ -222,6 +288,7 @@ class QuizAdService {
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
+          debugPrint('AdMob interstitial loaded.');
           _interstitialAd = ad;
         },
         onAdFailedToLoad: (error) {
@@ -273,6 +340,9 @@ class QuizAdService {
 
   String _resolveBannerId(SystemConfig config) {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
+      if (kDebugMode) {
+        return _iosTestBannerId;
+      }
       return config.iosAdmobBannerId.isNotEmpty
           ? config.iosAdmobBannerId
           : _iosBannerId;
@@ -284,6 +354,9 @@ class QuizAdService {
 
   String _resolveInterstitialId(SystemConfig config) {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
+      if (kDebugMode) {
+        return _iosTestInterstitialId;
+      }
       return config.iosAdmobInterstitialId.isNotEmpty
           ? config.iosAdmobInterstitialId
           : _iosInterstitialId;
@@ -295,6 +368,9 @@ class QuizAdService {
 
   String _resolveRewardedId(SystemConfig config) {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
+      if (kDebugMode) {
+        return _iosTestRewardedId;
+      }
       return config.iosAdmobRewardedVideoAds.isNotEmpty
           ? config.iosAdmobRewardedVideoAds
           : _iosRewardedId;

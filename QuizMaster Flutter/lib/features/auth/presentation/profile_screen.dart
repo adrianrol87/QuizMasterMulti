@@ -63,11 +63,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
+      backgroundColor: AppTheme.pageBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: AppTheme.ink,
+        foregroundColor: AppTheme.textColor(context),
         title: Text(
           strings.text('profile'),
           style: theme.textTheme.titleLarge?.copyWith(

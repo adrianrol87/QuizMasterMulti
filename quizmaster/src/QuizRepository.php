@@ -302,6 +302,67 @@ final class QuizRepository
         );
     }
 
+    public function getBookmarkedQuestions(int $userId): array
+    {
+        $this->ensureBookmarksTable();
+        $rows = $this->db->fetchAll(
+            "SELECT q.*, b.created_at AS bookmarked_at,
+                    c.category_name AS category_name
+             FROM user_question_bookmarks b
+             INNER JOIN question q ON q.id=b.question_id
+             LEFT JOIN category c ON c.id=q.category
+             WHERE b.user_id={$userId}
+             ORDER BY b.created_at DESC, b.id DESC"
+        );
+
+        return array_map(function (array $row): array {
+            $question = $this->mapQuestion($row);
+            $question['category_name'] = $row['category_name'] ?? '';
+            $question['bookmarked_at'] = $row['bookmarked_at'] ?? '';
+            return $question;
+        }, $rows);
+    }
+
+    public function getBookmarkedQuestionIds(int $userId): array
+    {
+        $this->ensureBookmarksTable();
+        $rows = $this->db->fetchAll(
+            "SELECT question_id FROM user_question_bookmarks
+             WHERE user_id={$userId} ORDER BY id DESC"
+        );
+
+        return array_map(
+            static fn(array $row): string => (string) ($row['question_id'] ?? ''),
+            $rows
+        );
+    }
+
+    public function setQuestionBookmark(int $userId, int $questionId, bool $bookmarked): bool
+    {
+        $this->ensureBookmarksTable();
+        $question = $this->db->fetchOne(
+            "SELECT id FROM question WHERE id={$questionId} LIMIT 1"
+        );
+        if ($question === null) {
+            throw new DomainException('Question not found.');
+        }
+
+        if (!$bookmarked) {
+            $this->db->execute(
+                "DELETE FROM user_question_bookmarks
+                 WHERE user_id={$userId} AND question_id={$questionId}"
+            );
+            return false;
+        }
+
+        $this->db->execute(
+            "INSERT IGNORE INTO user_question_bookmarks
+             (user_id, question_id, created_at)
+             VALUES ({$userId}, {$questionId}, NOW())"
+        );
+        return true;
+    }
+
     public function getLevelData(
         int $userId,
         int $categoryId,
@@ -326,16 +387,18 @@ final class QuizRepository
         int $subcategoryId = 0,
     ): void {
         $existing = $this->db->fetchOne(
-            "SELECT id
+            "SELECT id, level
              FROM tbl_level
              WHERE user_id={$userId} AND category={$categoryId} AND subcategory={$subcategoryId}
              LIMIT 1"
         );
 
         if ($existing !== null) {
+            $savedLevel = max(1, (int) ($existing['level'] ?? 1));
+            $nextLevel = max($savedLevel, $level);
             $this->db->execute(
                 "UPDATE tbl_level
-                 SET level={$level}
+                 SET level={$nextLevel}
                  WHERE user_id={$userId} AND category={$categoryId} AND subcategory={$subcategoryId}"
             );
             return;
@@ -747,6 +810,22 @@ final class QuizRepository
             'level' => $row['level'] ?? '0',
             'note' => $row['note'] ?? '',
         ];
+    }
+
+    private function ensureBookmarksTable(): void
+    {
+        $this->db->execute(
+            "CREATE TABLE IF NOT EXISTS user_question_bookmarks (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                user_id INT NOT NULL,
+                question_id INT NOT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY unique_user_question (user_id, question_id),
+                KEY idx_bookmark_user (user_id),
+                KEY idx_bookmark_question (question_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        );
     }
 
     private function normalizeCategoryImage(string $image): string

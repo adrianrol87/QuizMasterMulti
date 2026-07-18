@@ -4,7 +4,6 @@ import '../../../../core/l10n/app_strings.dart';
 import '../../../../core/network/php_api_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/data/auth_repository.dart';
-import '../../../auth/data/mock_auth_repository.dart';
 import '../../../auth/models/app_user.dart';
 import '../../../config/models/system_config.dart';
 import '../../../game_2048/presentation/game_2048_screen.dart';
@@ -29,6 +28,8 @@ class DashboardSections extends StatelessWidget {
     required this.currentUser,
     required this.authRepository,
     required this.onUserUpdated,
+    required this.onGameReturned,
+    this.inlineBanner,
   });
 
   final AppStrings strings;
@@ -40,6 +41,18 @@ class DashboardSections extends StatelessWidget {
   final AppUser? currentUser;
   final AuthRepository authRepository;
   final ValueChanged<AppUser> onUserUpdated;
+  final Future<void> Function() onGameReturned;
+  final Widget? inlineBanner;
+
+  Future<void> _openGameRoute(BuildContext context, Route<void> route) async {
+    await Navigator.of(context).push(route);
+    await onGameReturned();
+  }
+
+  Future<void> _openNamedGame(BuildContext context, String routeName) async {
+    await Navigator.of(context).pushNamed(routeName);
+    await onGameReturned();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,20 +86,18 @@ class DashboardSections extends StatelessWidget {
           start: const Color(0xFF70C36C),
           end: const Color(0xFF53AB59),
           icon: Icons.lock_outline_rounded,
-          onTap: () => Navigator.of(context).pushNamed(
-            QuizZoneScreen.routeName,
-          ),
+          onTap: () => _openNamedGame(context, QuizZoneScreen.routeName),
         ),
-        _ModeCardData(
-          title: strings.text('selfChallenge'),
-          start: const Color(0xFFC86BE8),
-          end: const Color(0xFFAA56DF),
-          icon: Icons.play_arrow_rounded,
+      _ModeCardData(
+        title: strings.text('selfChallenge'),
+        start: const Color(0xFFC86BE8),
+        end: const Color(0xFFAA56DF),
+        icon: Icons.play_arrow_rounded,
         onTap: () => _openFirstPlayableCategory(
           context,
-            fallbackTitle: strings.text('selfChallenge'),
-          ),
+          fallbackTitle: strings.text('selfChallenge'),
         ),
+      ),
     ];
 
     final learningZoneItems = <_ModeCardData>[
@@ -152,9 +163,7 @@ class DashboardSections extends StatelessWidget {
         _SectionHeader(
           title: strings.text('quizZone'),
           action: strings.text('viewAll'),
-          onActionTap: () => Navigator.of(context).pushNamed(
-            QuizZoneScreen.routeName,
-          ),
+          onActionTap: () => _openNamedGame(context, QuizZoneScreen.routeName),
         ),
         const SizedBox(height: 12),
         if (categories.isEmpty)
@@ -172,6 +181,7 @@ class DashboardSections extends StatelessWidget {
             currentUser: currentUser,
             authRepository: authRepository,
             onUserUpdated: onUserUpdated,
+            onGameReturned: onGameReturned,
           ),
         const SizedBox(height: 24),
         _SectionHeader(
@@ -187,14 +197,16 @@ class DashboardSections extends StatelessWidget {
               start: const Color(0xFF53B4FF),
               end: const Color(0xFF2B80D8),
               icon: Icons.grid_view_rounded,
-              onTap: () => Navigator.of(context).push(
+              onTap: () => _openGameRoute(
+                context,
                 MaterialPageRoute<void>(
                   builder: (_) => Game2048Screen(
                     locale: locale,
                     coins: (currentUser?.coins ?? '0').toString(),
                     modeKey: 'classic',
-                    titleOverride:
-                        locale.languageCode == 'es' ? '2048 CLASICO' : '2048 CLASSIC',
+                    titleOverride: locale.languageCode == 'es'
+                        ? '2048 CLASICO'
+                        : '2048 CLASSIC',
                     currentUser: currentUser,
                     onUserUpdated: onUserUpdated,
                   ),
@@ -206,7 +218,8 @@ class DashboardSections extends StatelessWidget {
               start: const Color(0xFF5C8DFF),
               end: const Color(0xFF3659D9),
               icon: Icons.emoji_events_rounded,
-              onTap: () => Navigator.of(context).push(
+              onTap: () => _openGameRoute(
+                context,
                 MaterialPageRoute<void>(
                   builder: (_) => Game2048ChallengesLevelScreen(
                     locale: locale,
@@ -219,11 +232,26 @@ class DashboardSections extends StatelessWidget {
             ),
           ],
         ),
+        if (inlineBanner != null) ...[
+          const SizedBox(height: 20),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.cardBackground(context),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppTheme.borderColor(context)),
+            ),
+            alignment: Alignment.center,
+            child: inlineBanner,
+          ),
+        ],
         const SizedBox(height: 24),
         _SectionHeader(
           title: locale.languageCode == 'es' ? 'Sopa de Letras' : 'Word Search',
           action: strings.text('viewAll'),
-          onActionTap: () => Navigator.of(context).push(
+          onActionTap: () => _openGameRoute(
+            context,
             MaterialPageRoute<void>(
               builder: (_) => WordSearchPreviewScreen(
                 locale: locale,
@@ -241,6 +269,7 @@ class DashboardSections extends StatelessWidget {
           locale: locale,
           currentUser: currentUser,
           onUserUpdated: onUserUpdated,
+          onGameReturned: onGameReturned,
           wordSearchRepository: wordSearchRepository,
           quizResultRepository: quizResultRepository,
         ),
@@ -305,16 +334,17 @@ class DashboardSections extends StatelessWidget {
     );
   }
 
-  void _openFirstPlayableCategory(
+  Future<void> _openFirstPlayableCategory(
     BuildContext context, {
     required String fallbackTitle,
   }) {
     if (categories.isEmpty) {
       _showNoContentSnack(context);
-      return;
+      return Future<void>.value();
     }
 
-    Navigator.of(context).push(
+    return _openGameRoute(
+      context,
       MaterialPageRoute<void>(
         builder: (_) => SubcategoryScreen(
           locale: locale,
@@ -329,7 +359,7 @@ class DashboardSections extends StatelessWidget {
     );
   }
 
-  void _openDailyQuiz(BuildContext context) {
+  Future<void> _openDailyQuiz(BuildContext context) {
     final fallbackCategory = categories.isNotEmpty
         ? categories.first
         : QuizCategory(
@@ -348,7 +378,8 @@ class DashboardSections extends StatelessWidget {
             icon: Icons.today_rounded,
           );
 
-    Navigator.of(context).push(
+    return _openGameRoute(
+      context,
       MaterialPageRoute<void>(
         builder: (_) => QuestionScreen(
           locale: locale,
@@ -365,16 +396,17 @@ class DashboardSections extends StatelessWidget {
     );
   }
 
-  void _openFirstQuestionSet(
+  Future<void> _openFirstQuestionSet(
     BuildContext context, {
     required String title,
   }) {
     if (categories.isEmpty) {
       _showNoContentSnack(context);
-      return;
+      return Future<void>.value();
     }
 
-    Navigator.of(context).push(
+    return _openGameRoute(
+      context,
       MaterialPageRoute<void>(
         builder: (_) => QuestionScreen(
           locale: locale,
@@ -396,7 +428,7 @@ class DashboardSections extends StatelessWidget {
   }) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.cardBackground(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
@@ -411,17 +443,17 @@ class DashboardSections extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.ink,
-                  ),
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textColor(context),
+                      ),
                 ),
                 const SizedBox(height: 10),
                 Text(
                   strings.text('modePreviewBody'),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF5B6B7C),
-                    height: 1.45,
-                  ),
+                        color: AppTheme.mutedTextColor(context),
+                        height: 1.45,
+                      ),
                 ),
                 const SizedBox(height: 18),
                 FilledButton(
@@ -466,7 +498,7 @@ class _SectionHeader extends StatelessWidget {
     return Row(
       children: [
         if (icon != null) ...[
-          Icon(icon, size: 22, color: AppTheme.ink),
+          Icon(icon, size: 22, color: AppTheme.textColor(context)),
           const SizedBox(width: 8),
         ],
         Text(
@@ -507,6 +539,7 @@ class _CategoryScroller extends StatelessWidget {
     required this.currentUser,
     required this.authRepository,
     required this.onUserUpdated,
+    required this.onGameReturned,
   });
 
   final AppStrings strings;
@@ -517,39 +550,47 @@ class _CategoryScroller extends StatelessWidget {
   final AppUser? currentUser;
   final AuthRepository authRepository;
   final ValueChanged<AppUser> onUserUpdated;
+  final Future<void> Function() onGameReturned;
 
   @override
   Widget build(BuildContext context) {
-    final visibleItems = categories.length > 5 ? categories.take(5).toList() : categories;
-    return SizedBox(
-      height: 160,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: visibleItems.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 14),
-        itemBuilder: (context, index) {
-          final item = visibleItems[index];
-          return _QuizZoneBanner(
-            item: item,
-            strings: strings,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => SubcategoryScreen(
-                    locale: locale,
-                    category: item,
-                    quizRepository: quizRepository,
-                    quizResultRepository: quizResultRepository,
-                    currentUser: currentUser,
-                    authRepository: authRepository,
-                    onUserUpdated: onUserUpdated,
-                  ),
-                ),
+    final visibleItems =
+        categories.length > 5 ? categories.take(5).toList() : categories;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SizedBox(
+          height: 160,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: visibleItems.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 14),
+            itemBuilder: (context, index) {
+              final item = visibleItems[index];
+              return _QuizZoneBanner(
+                item: item,
+                strings: strings,
+                width: constraints.maxWidth,
+                onTap: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => SubcategoryScreen(
+                        locale: locale,
+                        category: item,
+                        quizRepository: quizRepository,
+                        quizResultRepository: quizResultRepository,
+                        currentUser: currentUser,
+                        authRepository: authRepository,
+                        onUserUpdated: onUserUpdated,
+                      ),
+                    ),
+                  );
+                  await onGameReturned();
+                },
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -559,6 +600,7 @@ class _WordSearchCategoryScroller extends StatelessWidget {
     required this.locale,
     required this.currentUser,
     required this.onUserUpdated,
+    required this.onGameReturned,
     required this.wordSearchRepository,
     required this.quizResultRepository,
   });
@@ -566,6 +608,7 @@ class _WordSearchCategoryScroller extends StatelessWidget {
   final Locale locale;
   final AppUser? currentUser;
   final ValueChanged<AppUser> onUserUpdated;
+  final Future<void> Function() onGameReturned;
   final WordSearchRepository wordSearchRepository;
   final QuizResultRepository quizResultRepository;
 
@@ -610,36 +653,42 @@ class _WordSearchCategoryScroller extends StatelessWidget {
         }
 
         final visibleItems = items.length > 5 ? items.take(5).toList() : items;
-        return SizedBox(
-          height: 160,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: visibleItems.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 14),
-            itemBuilder: (context, index) {
-              final item = visibleItems[index];
-              return _WordSearchBanner(
-                item: item,
-                locale: locale,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => WordSearchPreviewScreen(
-                        locale: locale,
-                        coins: (currentUser?.coins ?? '0').toString(),
-                        currentUser: currentUser,
-                        onUserUpdated: onUserUpdated,
-                        wordSearchRepository: wordSearchRepository,
-                        quizResultRepository: quizResultRepository,
-                        initialCategoryId: item.id,
-                        initialCategory: item,
-                      ),
-                    ),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            return SizedBox(
+              height: 160,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: visibleItems.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 14),
+                itemBuilder: (context, index) {
+                  final item = visibleItems[index];
+                  return _WordSearchBanner(
+                    item: item,
+                    locale: locale,
+                    width: constraints.maxWidth,
+                    onTap: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => WordSearchPreviewScreen(
+                            locale: locale,
+                            coins: (currentUser?.coins ?? '0').toString(),
+                            currentUser: currentUser,
+                            onUserUpdated: onUserUpdated,
+                            wordSearchRepository: wordSearchRepository,
+                            quizResultRepository: quizResultRepository,
+                            initialCategoryId: item.id,
+                            initialCategory: item,
+                          ),
+                        ),
+                      );
+                      await onGameReturned();
+                    },
                   );
                 },
-              );
-            },
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -728,11 +777,13 @@ class _WordSearchBanner extends StatelessWidget {
     required this.item,
     required this.locale,
     required this.onTap,
+    required this.width,
   });
 
   final WordSearchCategory item;
   final Locale locale;
   final VoidCallback onTap;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
@@ -742,7 +793,7 @@ class _WordSearchBanner extends StatelessWidget {
       borderRadius: BorderRadius.circular(28),
       onTap: onTap,
       child: Container(
-        width: 292,
+        width: width,
         padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -769,7 +820,8 @@ class _WordSearchBanner extends StatelessWidget {
               children: [
                 if (item.isPremium)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(16),
@@ -797,7 +849,9 @@ class _WordSearchBanner extends StatelessWidget {
                   ),
                   child: Icon(
                     item.isPremium
-                        ? (item.isPurchased ? Icons.check_rounded : Icons.lock_rounded)
+                        ? (item.isPurchased
+                            ? Icons.check_rounded
+                            : Icons.lock_rounded)
                         : Icons.arrow_forward_rounded,
                     color: Colors.white,
                     size: 18,
@@ -840,11 +894,13 @@ class _QuizZoneBanner extends StatelessWidget {
     required this.item,
     required this.strings,
     required this.onTap,
+    required this.width,
   });
 
   final QuizCategory item;
   final AppStrings strings;
   final VoidCallback onTap;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
@@ -852,7 +908,7 @@ class _QuizZoneBanner extends StatelessWidget {
       borderRadius: BorderRadius.circular(28),
       onTap: onTap,
       child: Container(
-        width: 292,
+        width: width,
         padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -879,7 +935,8 @@ class _QuizZoneBanner extends StatelessWidget {
               children: [
                 if (item.isPremium)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(16),
@@ -918,8 +975,8 @@ class _QuizZoneBanner extends StatelessWidget {
                   child: Icon(
                     item.isPremium
                         ? (item.isPurchased
-                              ? Icons.check_rounded
-                              : Icons.lock_rounded)
+                            ? Icons.check_rounded
+                            : Icons.lock_rounded)
                         : Icons.check_rounded,
                     color: Colors.white,
                     size: 18,
@@ -944,10 +1001,12 @@ class _QuizZoneBanner extends StatelessWidget {
               runSpacing: 10,
               children: [
                 _InfoPill(
-                  label: '${item.questionCount} ${strings.text('questionsShort')}',
+                  label:
+                      '${item.questionCount} ${strings.text('questionsShort')}',
                 ),
                 _InfoPill(
-                  label: '${item.subcategoryCount} ${strings.text('categoriesShort')}',
+                  label:
+                      '${item.subcategoryCount} ${strings.text('categoriesShort')}',
                 ),
               ],
             ),
@@ -1000,7 +1059,8 @@ class _ModeCard extends StatelessWidget {
               child: Icon(
                 item.icon,
                 size: ornamentSize,
-                color: Colors.white.withValues(alpha: item.fullWidth ? 0.18 : 0.30),
+                color: Colors.white
+                    .withValues(alpha: item.fullWidth ? 0.18 : 0.30),
               ),
             ),
             Column(
@@ -1067,7 +1127,7 @@ class _ContestCard extends StatelessWidget {
       onTap: () {
         showModalBottomSheet<void>(
           context: context,
-          backgroundColor: Colors.white,
+          backgroundColor: AppTheme.cardBackground(context),
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
           ),
@@ -1082,17 +1142,17 @@ class _ContestCard extends StatelessWidget {
                     Text(
                       strings.text('contests'),
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.ink,
-                      ),
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.textColor(context),
+                          ),
                     ),
                     const SizedBox(height: 10),
                     Text(
                       strings.text('modePreviewBody'),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: const Color(0xFF5B6B7C),
-                        height: 1.45,
-                      ),
+                            color: AppTheme.mutedTextColor(context),
+                            height: 1.45,
+                          ),
                     ),
                     const SizedBox(height: 18),
                     FilledButton(
@@ -1151,7 +1211,8 @@ class _ContestCard extends StatelessWidget {
                 const SizedBox(height: 56),
                 Row(
                   children: [
-                    const Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 20),
+                    const Icon(Icons.play_circle_fill_rounded,
+                        color: Colors.white, size: 20),
                     const SizedBox(width: 8),
                     Text(
                       strings.text('playNow'),
@@ -1213,9 +1274,9 @@ class _EmptySectionCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.cardBackground(context),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE3EBF4)),
+        border: Border.all(color: AppTheme.borderColor(context)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0F12304A),
@@ -1237,7 +1298,7 @@ class _EmptySectionCard extends StatelessWidget {
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w800,
-                  color: AppTheme.ink,
+                  color: AppTheme.textColor(context),
                 ),
           ),
           const SizedBox(height: 8),
@@ -1245,7 +1306,7 @@ class _EmptySectionCard extends StatelessWidget {
             body,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF5E748C),
+                  color: AppTheme.mutedTextColor(context),
                   height: 1.45,
                 ),
           ),

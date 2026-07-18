@@ -102,12 +102,13 @@ class _LoginScreenState extends State<LoginScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
+      backgroundColor: AppTheme.pageBackground(context),
       body: FutureBuilder<SystemConfig>(
         future: _configFuture,
         builder: (context, snapshot) {
           final config = snapshot.data;
-          if (snapshot.connectionState != ConnectionState.done && config == null) {
+          if (snapshot.connectionState != ConnectionState.done &&
+              config == null) {
             return const SafeArea(
               child: Center(child: CircularProgressIndicator()),
             );
@@ -287,8 +288,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                 _signupEmailController,
                                             phoneController:
                                                 _signupPhoneController,
-                                            selectedDialCode:
-                                                _selectedDialCode,
+                                            selectedDialCode: _selectedDialCode,
                                             dialCodes: _dialCodes,
                                             onDialCodeChanged: (value) {
                                               setState(() {
@@ -372,8 +372,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                     const SizedBox(height: 24),
                                     Text.rich(
                                       TextSpan(
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
+                                        style:
+                                            theme.textTheme.bodySmall?.copyWith(
                                           color: const Color(0xFF687B91),
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -397,9 +397,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                                       future: widget
                                                           .appContentRepository
                                                           .fetchTermsOfService(
-                                                            widget.locale
-                                                                .languageCode,
-                                                          ),
+                                                        widget.locale
+                                                            .languageCode,
+                                                      ),
                                                     ),
                                                   ),
                                                 );
@@ -407,8 +407,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                             ),
                                           ),
                                           TextSpan(
-                                            text:
-                                                ' ${strings.text('and')} ',
+                                            text: ' ${strings.text('and')} ',
                                           ),
                                           WidgetSpan(
                                             alignment:
@@ -425,9 +424,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                                       future: widget
                                                           .appContentRepository
                                                           .fetchPrivacyPolicy(
-                                                            widget.locale
-                                                                .languageCode,
-                                                          ),
+                                                        widget.locale
+                                                            .languageCode,
+                                                      ),
                                                     ),
                                                   ),
                                                 );
@@ -1199,7 +1198,8 @@ class _DialCodeField extends StatelessWidget {
                       color: AppTheme.ink,
                     ),
               ),
-              const Icon(Icons.arrow_drop_down_rounded, color: AppTheme.primary),
+              const Icon(Icons.arrow_drop_down_rounded,
+                  color: AppTheme.primary),
             ],
           ),
         ),
@@ -1343,9 +1343,7 @@ class _LanguageOption extends StatelessWidget {
           color: selected ? const Color(0xFFEAF4FF) : Colors.white,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: selected
-                ? const Color(0xFF2B6FB6)
-                : const Color(0xFFE2EAF4),
+            color: selected ? const Color(0xFF2B6FB6) : const Color(0xFFE2EAF4),
           ),
         ),
         child: Row(

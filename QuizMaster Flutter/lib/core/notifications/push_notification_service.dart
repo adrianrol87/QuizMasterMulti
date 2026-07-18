@@ -8,6 +8,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../../features/auth/models/app_user.dart';
 import '../network/php_api_client.dart';
+import 'notification_preferences.dart';
 
 class PushNotificationService {
   PushNotificationService({
@@ -22,6 +23,8 @@ class PushNotificationService {
   final FirebaseMessaging _messaging;
   final PhpApiClient? _apiClient;
   final FlutterLocalNotificationsPlugin _localNotifications;
+  final NotificationPreferenceStore _preferenceStore =
+      const NotificationPreferenceStore();
   final StreamController<Map<String, String>> _notificationTapController =
       StreamController<Map<String, String>>.broadcast();
 
@@ -32,10 +35,37 @@ class PushNotificationService {
     description: 'QuizMaster notifications',
     importance: Importance.high,
   );
+  static const AndroidNotificationChannel _soundOnlyChannel =
+      AndroidNotificationChannel(
+    'sound_only_channel',
+    'Notifications with sound',
+    description: 'QuizMaster notifications with sound only',
+    importance: Importance.high,
+    enableVibration: false,
+  );
+  static const AndroidNotificationChannel _vibrationOnlyChannel =
+      AndroidNotificationChannel(
+    'vibration_only_channel',
+    'Notifications with vibration',
+    description: 'QuizMaster notifications with vibration only',
+    importance: Importance.high,
+    playSound: false,
+  );
+  static const AndroidNotificationChannel _silentChannel =
+      AndroidNotificationChannel(
+    'silent_channel',
+    'Silent notifications',
+    description: 'QuizMaster notifications without sound or vibration',
+    importance: Importance.high,
+    playSound: false,
+    enableVibration: false,
+  );
 
   StreamSubscription<String>? _tokenRefreshSubscription;
+  StreamSubscription<RemoteMessage>? _foregroundMessageSubscription;
   StreamSubscription<RemoteMessage>? _messageOpenSubscription;
   String? _currentUserId;
+  NotificationPreferences _preferences = const NotificationPreferences();
   bool _initialized = false;
 
   Stream<Map<String, String>> get notificationTapStream =>
@@ -50,29 +80,16 @@ class PushNotificationService {
 
     await _initializeLocalNotifications();
 
-    final notificationSettings = await _messaging.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
-      sound: true,
-    );
-    debugPrint(
-      'Push notification authorization: '
-      '${notificationSettings.authorizationStatus.name}; '
-      'alert=${notificationSettings.alert.name}; '
-      'lockScreen=${notificationSettings.lockScreen.name}; '
-      'notificationCenter=${notificationSettings.notificationCenter.name}; '
-      'sound=${notificationSettings.sound.name}.',
-    );
+    final authorization = await requestPermission();
+    debugPrint('Push notification authorization: ${authorization.name}.');
 
     if (defaultTargetPlatform == TargetPlatform.iOS) {
+      // Foreground messages are rendered locally so category, sound and
+      // vibration preferences can be respected consistently on both systems.
       await _messaging.setForegroundNotificationPresentationOptions(
-        alert: true,
-        badge: true,
-        sound: true,
+        alert: false,
+        badge: false,
+        sound: false,
       );
     }
 
@@ -87,17 +104,14 @@ class PushNotificationService {
       },
     );
 
-    FirebaseMessaging.onMessage.listen((message) {
-      final shouldShowLocalNotification =
-          defaultTargetPlatform != TargetPlatform.iOS ||
-              message.notification == null;
-      if (shouldShowLocalNotification) {
+    _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen(
+      (message) {
         unawaited(_showForegroundNotification(message));
-      }
-      debugPrint(
-        'Push foreground: ${message.notification?.title ?? ''} ${message.notification?.body ?? ''}',
-      );
-    });
+        debugPrint(
+          'Push foreground: ${message.notification?.title ?? ''} ${message.notification?.body ?? ''}',
+        );
+      },
+    );
 
     _messageOpenSubscription = FirebaseMessaging.onMessageOpenedApp.listen(
       _emitTapPayload,
@@ -109,8 +123,31 @@ class PushNotificationService {
     }
   }
 
+  Future<AuthorizationStatus> requestPermission() async {
+    final notificationSettings = await _messaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
+    return notificationSettings.authorizationStatus;
+  }
+
+  Future<AuthorizationStatus> authorizationStatus() async {
+    final settings = await _messaging.getNotificationSettings();
+    return settings.authorizationStatus;
+  }
+
+  Future<void> applyPreferences(NotificationPreferences preferences) async {
+    _preferences = preferences;
+  }
+
   Future<void> syncUser(AppUser user) async {
     _currentUserId = user.id;
+    _preferences = await _preferenceStore.load(user.id);
 
     if (kIsWeb || _apiClient == null || user.id.trim().isEmpty) {
       return;
@@ -147,10 +184,12 @@ class PushNotificationService {
 
   void clearUser() {
     _currentUserId = null;
+    _preferences = const NotificationPreferences();
   }
 
   Future<void> dispose() async {
     await _tokenRefreshSubscription?.cancel();
+    await _foregroundMessageSubscription?.cancel();
     await _messageOpenSubscription?.cancel();
     await _notificationTapController.close();
   }
@@ -200,10 +239,21 @@ class PushNotificationService {
         _localNotifications.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
     await androidPlugin?.createNotificationChannel(_defaultChannel);
+    await androidPlugin?.createNotificationChannel(_soundOnlyChannel);
+    await androidPlugin?.createNotificationChannel(_vibrationOnlyChannel);
+    await androidPlugin?.createNotificationChannel(_silentChannel);
   }
 
   Future<void> _showForegroundNotification(RemoteMessage message) async {
     if (kIsWeb) {
+      return;
+    }
+
+    final category = (message.data['notification_category'] ??
+            message.data['type'] ??
+            'general')
+        .toString();
+    if (!_preferences.allowsCategory(category)) {
       return;
     }
 
@@ -214,19 +264,27 @@ class PushNotificationService {
       return;
     }
 
+    final channel = _preferences.sound
+        ? (_preferences.vibration ? _defaultChannel : _soundOnlyChannel)
+        : (_preferences.vibration ? _vibrationOnlyChannel : _silentChannel);
+
     await _localNotifications.show(
       message.hashCode,
       title,
       body,
-      const NotificationDetails(
+      NotificationDetails(
         android: AndroidNotificationDetails(
-          'default_channel',
-          'General Notifications',
-          channelDescription: 'QuizMaster notifications',
+          channel.id,
+          channel.name,
+          channelDescription: channel.description,
           importance: Importance.high,
           priority: Priority.high,
+          playSound: _preferences.sound,
+          enableVibration: _preferences.vibration,
         ),
-        iOS: DarwinNotificationDetails(),
+        iOS: DarwinNotificationDetails(
+          presentSound: _preferences.sound,
+        ),
       ),
       payload: jsonEncode(_messagePayload(message)),
     );

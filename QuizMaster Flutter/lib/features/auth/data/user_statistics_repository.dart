@@ -14,15 +14,22 @@ class RemoteUserStatisticsRepository implements UserStatisticsRepository {
 
   @override
   Future<UserStatistics> fetchUserStatistics(String userId) async {
-    final response = await apiClient.post({
-      'get_users_statistics': '1',
-      'user_id': userId,
-    });
-    final data = response['data'];
-    if (data is! Map<String, dynamic>) {
-      throw const PhpApiException('Invalid user statistics payload.');
+    try {
+      final response = await apiClient.post({
+        'get_users_statistics': '1',
+        'user_id': userId,
+      });
+      final data = response['data'];
+      if (data is! Map<String, dynamic>) {
+        throw const PhpApiException('Invalid user statistics payload.');
+      }
+      return UserStatistics.fromJson(data);
+    } on PhpApiException catch (error) {
+      if (error.message.contains('status 404')) {
+        return UserStatistics.fromJson({'user_id': userId});
+      }
+      rethrow;
     }
-    return UserStatistics.fromJson(data);
   }
 }
 

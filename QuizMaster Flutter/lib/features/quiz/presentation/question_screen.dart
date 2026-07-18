@@ -5,10 +5,12 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../../core/ads/quiz_ad_service.dart';
 import '../../../core/l10n/app_strings.dart';
+import '../../../core/network/php_api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/data/mock_auth_repository.dart';
 import '../../auth/models/app_user.dart';
+import '../../bookmarks/data/bookmark_repository.dart';
 import '../data/mock_quiz_repository.dart';
 import '../data/quiz_result_repository.dart';
 import '../models/quiz_category.dart';
@@ -30,6 +32,7 @@ class QuestionScreen extends StatefulWidget {
     this.currentUser,
     this.onUserUpdated,
     this.dailyQuizLanguageId,
+    this.bookmarkRepository,
   });
 
   final Locale locale;
@@ -44,6 +47,7 @@ class QuestionScreen extends StatefulWidget {
   final AppUser? currentUser;
   final ValueChanged<AppUser>? onUserUpdated;
   final String? dailyQuizLanguageId;
+  final BookmarkRepository? bookmarkRepository;
 
   @override
   State<QuestionScreen> createState() => _QuestionScreenState();
@@ -66,13 +70,76 @@ class _QuestionScreenState extends State<QuestionScreen> {
   bool _timeExpired = false;
   bool _isSavingResult = false;
   bool _rewardMultiplierApplied = false;
+  late BookmarkRepository _bookmarkRepository;
+  Set<String> _bookmarkedQuestionIds = <String>{};
+  bool _updatingBookmark = false;
 
   @override
   void initState() {
     super.initState();
     _activeUser = widget.currentUser;
+    _bookmarkRepository = widget.bookmarkRepository ??
+        RemoteBookmarkRepository(apiClient: PhpApiClient());
     _future = _loadQuestions();
+    _loadBookmarkIds();
     _prepareQuestionBanner();
+  }
+
+  Future<void> _loadBookmarkIds() async {
+    final userId = _activeUser?.id ?? '';
+    if (userId.isEmpty) return;
+    try {
+      final ids = await _bookmarkRepository.fetchBookmarkIds(userId);
+      if (!mounted) return;
+      setState(() => _bookmarkedQuestionIds = ids);
+    } catch (_) {
+      // Bookmarks do not block gameplay when the server is temporarily offline.
+    }
+  }
+
+  Future<void> _toggleBookmark(QuizQuestion question) async {
+    final userId = _activeUser?.id ?? '';
+    if (userId.isEmpty || _updatingBookmark) return;
+
+    final shouldBookmark = !_bookmarkedQuestionIds.contains(question.id);
+    setState(() => _updatingBookmark = true);
+    try {
+      final saved = await _bookmarkRepository.setBookmark(
+        userId: userId,
+        questionId: question.id,
+        bookmarked: shouldBookmark,
+      );
+      if (!mounted) return;
+      setState(() {
+        _updatingBookmark = false;
+        if (saved) {
+          _bookmarkedQuestionIds.add(question.id);
+        } else {
+          _bookmarkedQuestionIds.remove(question.id);
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.locale.languageCode == 'es'
+                ? (saved ? 'Pregunta guardada.' : 'Pregunta eliminada.')
+                : (saved ? 'Question saved.' : 'Question removed.'),
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _updatingBookmark = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.locale.languageCode == 'es'
+                ? 'No se pudo actualizar el marcador.'
+                : 'Could not update the bookmark.',
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -87,6 +154,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.currentUser != widget.currentUser) {
       _activeUser = widget.currentUser;
+      _loadBookmarkIds();
     }
   }
 
@@ -193,6 +261,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
     }
 
     await _persistQuizResult(questions);
+    if (!context.mounted) return;
     _timer?.cancel();
     await showModalBottomSheet<void>(
       context: context,
@@ -203,8 +272,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
         totalQuestions: questions.length,
         correctAnswers: _correctAnswers,
         earnedCoins: _lastEarnedCoins,
-        canMultiplyCoins:
-            _lastEarnedCoins > 0 &&
+        canMultiplyCoins: _lastEarnedCoins > 0 &&
             !_rewardMultiplierApplied &&
             QuizAdService.instance.rewardMultiplierAvailable,
         onDoubleCoins: _handleRewardedCoinMultiplier,
@@ -253,8 +321,9 @@ class _QuestionScreenState extends State<QuestionScreen> {
       final selectedLevel = widget.selectedLevel;
       final maxAvailableLevel = widget.maxAvailableLevel ?? 0;
       if (selectedLevel != null && maxAvailableLevel > 0) {
-        final nextUnlockedLevel =
-            selectedLevel >= maxAvailableLevel ? maxAvailableLevel : selectedLevel + 1;
+        final nextUnlockedLevel = selectedLevel >= maxAvailableLevel
+            ? maxAvailableLevel
+            : selectedLevel + 1;
         await widget.quizRepository.saveLevelProgress(
           userId: user.id,
           categoryId: widget.category.id,
@@ -327,7 +396,8 @@ class _QuestionScreenState extends State<QuestionScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppStrings(widget.locale).text('rewardAdUnavailable')),
+            content:
+                Text(AppStrings(widget.locale).text('rewardAdUnavailable')),
           ),
         );
       }
@@ -422,7 +492,9 @@ class _QuestionScreenState extends State<QuestionScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: isSending ? null : () => Navigator.of(dialogContext).pop(),
+                  onPressed: isSending
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
                   child: Text(strings.text('cancelAction')),
                 ),
                 FilledButton(
@@ -433,7 +505,8 @@ class _QuestionScreenState extends State<QuestionScreen> {
                           if (message.isEmpty) {
                             ScaffoldMessenger.of(this.context).showSnackBar(
                               SnackBar(
-                                content: Text(strings.text('reportQuestionEmpty')),
+                                content:
+                                    Text(strings.text('reportQuestionEmpty')),
                               ),
                             );
                             return;
@@ -449,13 +522,14 @@ class _QuestionScreenState extends State<QuestionScreen> {
                               questionId: question.id,
                               message: message,
                             );
-                            if (!mounted) {
+                            if (!mounted || !dialogContext.mounted) {
                               return;
                             }
                             Navigator.of(dialogContext).pop();
                             ScaffoldMessenger.of(this.context).showSnackBar(
                               SnackBar(
-                                content: Text(strings.text('reportQuestionSuccess')),
+                                content:
+                                    Text(strings.text('reportQuestionSuccess')),
                               ),
                             );
                           } catch (_) {
@@ -467,7 +541,8 @@ class _QuestionScreenState extends State<QuestionScreen> {
                             });
                             ScaffoldMessenger.of(this.context).showSnackBar(
                               SnackBar(
-                                content: Text(strings.text('reportQuestionFailed')),
+                                content:
+                                    Text(strings.text('reportQuestionFailed')),
                               ),
                             );
                           }
@@ -488,11 +563,11 @@ class _QuestionScreenState extends State<QuestionScreen> {
     final strings = AppStrings(widget.locale);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
+      backgroundColor: AppTheme.pageBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: AppTheme.ink,
+        foregroundColor: AppTheme.textColor(context),
         title: Text(
           widget.title,
           style: theme.textTheme.titleLarge?.copyWith(
@@ -529,7 +604,9 @@ class _QuestionScreenState extends State<QuestionScreen> {
             );
           }
 
-          if (_secondsLeft == _secondsPerQuestion && !_answerSubmitted && _timer == null) {
+          if (_secondsLeft == _secondsPerQuestion &&
+              !_answerSubmitted &&
+              _timer == null) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted && _timer == null) {
                 _startTimer();
@@ -569,7 +646,8 @@ class _QuestionScreenState extends State<QuestionScreen> {
                 Expanded(
                   child: ListView(
                     children: [
-                      if (widget.subcategory != null || widget.selectedLevel != null)
+                      if (widget.subcategory != null ||
+                          widget.selectedLevel != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Wrap(
@@ -590,13 +668,36 @@ class _QuestionScreenState extends State<QuestionScreen> {
                             ],
                           ),
                         ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          onPressed: () => _reportQuestion(question),
-                          icon: const Icon(Icons.flag_outlined),
-                          label: Text(strings.text('reportQuestionAction')),
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton.icon(
+                            onPressed: _updatingBookmark
+                                ? null
+                                : () => _toggleBookmark(question),
+                            icon: Icon(
+                              _bookmarkedQuestionIds.contains(question.id)
+                                  ? Icons.bookmark_rounded
+                                  : Icons.bookmark_border_rounded,
+                            ),
+                            label: Text(
+                              widget.locale.languageCode == 'es'
+                                  ? (_bookmarkedQuestionIds
+                                          .contains(question.id)
+                                      ? 'Quitar'
+                                      : 'Guardar')
+                                  : (_bookmarkedQuestionIds
+                                          .contains(question.id)
+                                      ? 'Remove'
+                                      : 'Save'),
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: () => _reportQuestion(question),
+                            icon: const Icon(Icons.flag_outlined),
+                            label: Text(strings.text('reportQuestionAction')),
+                          ),
+                        ],
                       ),
                       _QuestionCard(
                         category: widget.category,
@@ -620,7 +721,8 @@ class _QuestionScreenState extends State<QuestionScreen> {
                         final letter = String.fromCharCode(65 + optionIndex);
                         final optionKey = letter.toLowerCase();
                         final isSelected = _selectedAnswer == optionKey;
-                        final isCorrect = question.correctOptionKey == optionKey;
+                        final isCorrect =
+                            question.correctOptionKey == optionKey;
                         final showCorrect = _answerSubmitted && isCorrect;
                         final showWrong =
                             _answerSubmitted && isSelected && !isCorrect;
@@ -649,7 +751,8 @@ class _QuestionScreenState extends State<QuestionScreen> {
                         const SizedBox(height: 8),
                         _AnswerFeedbackCard(
                           strings: strings,
-                          isCorrect: _selectedAnswer == question.correctOptionKey,
+                          isCorrect:
+                              _selectedAnswer == question.correctOptionKey,
                           correctAnswerLabel: currentAnswerLabel,
                           note: question.note,
                           timedOut: _timeExpired,
@@ -661,8 +764,9 @@ class _QuestionScreenState extends State<QuestionScreen> {
                 const SizedBox(height: 14),
                 if (!_answerSubmitted)
                   FilledButton(
-                    onPressed:
-                        _selectedAnswer == null ? null : () => _submitAnswer(question),
+                    onPressed: _selectedAnswer == null
+                        ? null
+                        : () => _submitAnswer(question),
                     child: Text(strings.text('submitAnswer')),
                   )
                 else
@@ -1159,7 +1263,9 @@ class _AnswerFeedbackCard extends StatelessWidget {
           Text(
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: isCorrect ? const Color(0xFF208447) : const Color(0xFFB64040),
+                  color: isCorrect
+                      ? const Color(0xFF208447)
+                      : const Color(0xFFB64040),
                   fontWeight: FontWeight.w900,
                 ),
           ),
@@ -1270,9 +1376,9 @@ class _QuizResultSheetState extends State<_QuizResultSheet> {
             const SizedBox(height: 8),
             Text(
               strings.text('quizFinishedBody').replaceFirst(
-                '{score}',
-                '${widget.correctAnswers}/${widget.totalQuestions}',
-              ),
+                    '{score}',
+                    '${widget.correctAnswers}/${widget.totalQuestions}',
+                  ),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: const Color(0xFF587087),
@@ -1281,7 +1387,8 @@ class _QuizResultSheetState extends State<_QuizResultSheet> {
             if (_displayCoins > 0) ...[
               const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEAF7EF),
                   borderRadius: BorderRadius.circular(18),
@@ -1297,9 +1404,9 @@ class _QuizResultSheetState extends State<_QuizResultSheet> {
                     const SizedBox(width: 10),
                     Text(
                       strings.text('coinsEarnedBody').replaceFirst(
-                        '{coins}',
-                        '$_displayCoins',
-                      ),
+                            '{coins}',
+                            '$_displayCoins',
+                          ),
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: const Color(0xFF267F3D),
                             fontWeight: FontWeight.w800,

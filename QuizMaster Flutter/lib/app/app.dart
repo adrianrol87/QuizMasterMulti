@@ -6,10 +6,8 @@ import '../core/ads/quiz_ad_service.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/purchases/quiz_purchase_service.dart';
 import '../core/theme/app_theme.dart';
-import '../features/auth/data/auth_repository.dart';
 import '../features/auth/models/app_user.dart';
 import '../features/auth/presentation/login_screen.dart';
-import '../features/config/models/system_config.dart';
 import '../features/home/presentation/home_shell.dart';
 import '../features/quiz/models/quiz_category.dart';
 import '../features/quiz/presentation/quiz_zone_screen.dart';
@@ -41,9 +39,13 @@ class _QuizMasterAppState extends State<QuizMasterApp> {
     rank: 0,
   );
   Locale _locale = AppStrings.supportedLocales.first;
+  final ThemePreferenceStore _themePreferenceStore =
+      const ThemePreferenceStore();
+  ThemeMode _themeMode = ThemeMode.system;
   late final AppServices _services = AppServices.create();
   AppUser? _currentUser;
   bool _isBootstrappingUser = true;
+  bool _isBootstrappingTheme = true;
   Map<String, String>? _pendingNotificationPayload;
 
   @override
@@ -54,6 +56,7 @@ class _QuizMasterAppState extends State<QuizMasterApp> {
       _handleNotificationPayload,
     );
     _configureAds();
+    _restoreThemeMode();
     _bootstrapUser();
   }
 
@@ -67,6 +70,20 @@ class _QuizMasterAppState extends State<QuizMasterApp> {
     setState(() {
       _locale = locale;
     });
+  }
+
+  Future<void> _restoreThemeMode() async {
+    final mode = await _themePreferenceStore.load();
+    if (!mounted) return;
+    setState(() {
+      _themeMode = mode;
+      _isBootstrappingTheme = false;
+    });
+  }
+
+  Future<void> _changeThemeMode(ThemeMode mode) async {
+    setState(() => _themeMode = mode);
+    await _themePreferenceStore.save(mode);
   }
 
   Future<void> _configureAds() async {
@@ -217,7 +234,7 @@ class _QuizMasterAppState extends State<QuizMasterApp> {
         return;
       }
 
-        navigator.push(
+      navigator.push(
         MaterialPageRoute<void>(
           builder: (_) => SubcategoryScreen(
             locale: _locale,
@@ -268,10 +285,10 @@ class _QuizMasterAppState extends State<QuizMasterApp> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isBootstrappingUser) {
-      return MaterialApp(
+    if (_isBootstrappingUser || _isBootstrappingTheme) {
+      return const MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: const Scaffold(
+        home: Scaffold(
           body: Center(
             child: CircularProgressIndicator(),
           ),
@@ -291,6 +308,8 @@ class _QuizMasterAppState extends State<QuizMasterApp> {
         GlobalWidgetsLocalizations.delegate,
       ],
       theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: _themeMode,
       home: _currentUser == null
           ? LoginScreen(
               locale: _locale,
@@ -316,6 +335,9 @@ class _QuizMasterAppState extends State<QuizMasterApp> {
               appContentRepository: _services.appContentRepository,
               quizRepository: _services.quizRepository,
               quizResultRepository: _services.quizResultRepository,
+              pushNotificationService: _services.pushNotificationService,
+              themeMode: _themeMode,
+              onThemeModeChanged: _changeThemeMode,
             ),
       routes: {
         LoginScreen.routeName: (_) => LoginScreen(

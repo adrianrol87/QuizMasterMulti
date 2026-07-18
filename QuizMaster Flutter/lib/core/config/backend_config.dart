@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class BackendConfig {
   const BackendConfig._();
 
@@ -10,17 +12,40 @@ class BackendConfig {
   static const bypassLoginForTesting = false;
   static const useFakeTop100Leaderboard = false;
   static const revenueCatGoogleApiKey = 'goog_KVNTfHuqHTgxIDxImIQaRPQwxUZ';
-  static const revenueCatAppleApiKey = '';
+  static const revenueCatAppleApiKey = 'appl_pAQYgVyyjOYlfzpkJhPFxFEEWeH';
   static const revenueCatRemoveAdsEntitlementId = 'remove_ads';
   static const revenueCatRemoveAdsProductId = 'remove_ads';
-  static const revenueCatCoins1000ProductId = 'coins_1000';
-  static const revenueCatCoins3000ProductId = 'coins_3000';
-  static const revenueCatCoins5000ProductId = 'coins_5000';
-  static const revenueCatCoins8500ProductId = 'coins_8500';
-  static const revenueCatCoins10500ProductId = 'coins_10500';
-  static const revenueCatCoins17000ProductId = 'coins_17000';
+  static const revenueCatAppleCoinsTier1ProductId = 'coins_tier1';
+  static const revenueCatAppleCoinsTier2ProductId = 'coins_tier2';
+  static const revenueCatAppleCoinsTier3ProductId = 'coins_tier3';
+  static const revenueCatAppleCoinsTier4ProductId = 'coins_tier4';
+  static const revenueCatAppleCoinsTier5ProductId = 'coins_tier5';
+  static const revenueCatGoogleCoinsTier1ProductId = 'coins_3000';
+  static const revenueCatGoogleCoinsTier2ProductId = 'coins_5000';
+  static const revenueCatGoogleCoinsTier3ProductId = 'coins_8500';
+  static const revenueCatGoogleCoinsTier4ProductId = 'coins_10500';
+  static const revenueCatGoogleCoinsTier5ProductId = 'coins_17000';
 
   static bool get isConfigured => baseUrl.trim().isNotEmpty;
+
+  static bool get _usesAppleProducts =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  static String get revenueCatCoinsTier1ProductId => _usesAppleProducts
+      ? revenueCatAppleCoinsTier1ProductId
+      : revenueCatGoogleCoinsTier1ProductId;
+  static String get revenueCatCoinsTier2ProductId => _usesAppleProducts
+      ? revenueCatAppleCoinsTier2ProductId
+      : revenueCatGoogleCoinsTier2ProductId;
+  static String get revenueCatCoinsTier3ProductId => _usesAppleProducts
+      ? revenueCatAppleCoinsTier3ProductId
+      : revenueCatGoogleCoinsTier3ProductId;
+  static String get revenueCatCoinsTier4ProductId => _usesAppleProducts
+      ? revenueCatAppleCoinsTier4ProductId
+      : revenueCatGoogleCoinsTier4ProductId;
+  static String get revenueCatCoinsTier5ProductId => _usesAppleProducts
+      ? revenueCatAppleCoinsTier5ProductId
+      : revenueCatGoogleCoinsTier5ProductId;
 
   static String get apiUrl {
     final normalizedBase = baseUrl.endsWith('/')

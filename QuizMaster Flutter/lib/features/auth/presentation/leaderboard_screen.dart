@@ -24,31 +24,19 @@ class LeaderboardScreen extends StatefulWidget {
 }
 
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
-  late LeaderboardRange _range;
   late Future<LeaderboardData> _future;
 
   @override
   void initState() {
     super.initState();
-    _range = LeaderboardRange.month;
     _future = _load();
   }
 
   Future<LeaderboardData> _load() {
     return widget.repository.fetchLeaderboard(
       userId: widget.currentUser.id,
-      range: _range,
+      range: LeaderboardRange.all,
     );
-  }
-
-  void _changeRange(LeaderboardRange range) {
-    if (_range == range) {
-      return;
-    }
-    setState(() {
-      _range = range;
-      _future = _load();
-    });
   }
 
   @override
@@ -56,11 +44,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     final strings = AppStrings(widget.locale);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
+      backgroundColor: AppTheme.pageBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: AppTheme.ink,
+        foregroundColor: AppTheme.textColor(context),
         title: Text(
           strings.text('leaderboard'),
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -122,32 +110,15 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _RangeChip(
-                              label: strings.text('todayLabel'),
-                              selected: _range == LeaderboardRange.today,
-                              onTap: () => _changeRange(LeaderboardRange.today),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _RangeChip(
-                              label: strings.text('monthLabel'),
-                              selected: _range == LeaderboardRange.month,
-                              onTap: () => _changeRange(LeaderboardRange.month),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _RangeChip(
-                              label: strings.text('allLabel'),
-                              selected: _range == LeaderboardRange.all,
-                              onTap: () => _changeRange(LeaderboardRange.all),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        widget.locale.languageCode == 'es'
+                            ? 'Clasificación por niveles completados'
+                            : 'Ranking by completed levels',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                       const SizedBox(height: 22),
                       if (entries.isEmpty)
@@ -211,14 +182,16 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                     padding: const EdgeInsets.fromLTRB(14, 12, 14, 96),
                     itemBuilder: (context, index) {
                       final entry = topList[index];
-                      final isCurrentUser = entry.userId.trim() == currentUserId ||
+                      final isCurrentUser = entry.userId.trim() ==
+                              currentUserId ||
                           entry.name.trim().toLowerCase() == currentUserName;
                       return _LeaderboardRow(
                         entry: entry,
                         highlight: isCurrentUser,
                       );
                     },
-                    separatorBuilder: (context, index) => const Divider(height: 1),
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1),
                     itemCount: topList.length,
                   ),
                 ),
@@ -257,14 +230,15 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                             SizedBox(
                               width: 28,
                               child: Text(
-                                '${currentUser!.rank}',
+                                '${currentUser.rank}',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
-                            _Avatar(profileUrl: currentUser.profileUrl, radius: 20),
+                            _Avatar(
+                                profileUrl: currentUser.profileUrl, radius: 20),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
@@ -295,46 +269,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class _RangeChip extends StatelessWidget {
-  const _RangeChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: Container(
-        height: 42,
-        decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: selected ? 0 : 0.9),
-            width: 1.6,
-          ),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? const Color(0xFF2B6FB6) : Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
       ),
     );
   }
@@ -493,7 +427,9 @@ class _LeaderboardRow extends StatelessWidget {
             child: Text(
               '${entry.rank}',
               style: TextStyle(
-                color: highlight ? const Color(0xFF1D6CBA) : const Color(0xFF2B6FB6),
+                color: highlight
+                    ? const Color(0xFF1D6CBA)
+                    : const Color(0xFF2B6FB6),
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
               ),
@@ -535,7 +471,8 @@ class _LeaderboardRow extends StatelessWidget {
           Text(
             '${entry.score}',
             style: TextStyle(
-              color: highlight ? const Color(0xFF1D6CBA) : const Color(0xFF2B6FB6),
+              color:
+                  highlight ? const Color(0xFF1D6CBA) : const Color(0xFF2B6FB6),
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -583,7 +520,8 @@ class _Avatar extends StatelessWidget {
                 fit: BoxFit.cover,
               )
             : null,
-        color: hasImage ? null : (fallbackBackground ?? const Color(0xFFE8EEF7)),
+        color:
+            hasImage ? null : (fallbackBackground ?? const Color(0xFFE8EEF7)),
       ),
       child: hasImage
           ? null

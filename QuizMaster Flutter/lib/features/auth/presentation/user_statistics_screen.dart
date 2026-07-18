@@ -44,11 +44,11 @@ class _UserStatisticsScreenState extends State<UserStatisticsScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
+      backgroundColor: AppTheme.pageBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: AppTheme.ink,
+        foregroundColor: AppTheme.textColor(context),
         title: Text(
           strings.text('playerStats'),
           style: theme.textTheme.titleLarge?.copyWith(
@@ -66,7 +66,8 @@ class _UserStatisticsScreenState extends State<UserStatisticsScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.bar_chart_rounded, size: 42, color: AppTheme.primary),
+                    const Icon(Icons.bar_chart_rounded,
+                        size: 42, color: AppTheme.primary),
                     const SizedBox(height: 12),
                     Text(
                       strings.text('statsUnavailable'),
@@ -107,8 +108,72 @@ class _UserStatisticsScreenState extends State<UserStatisticsScreen> {
                   user: widget.user,
                   stats: stats,
                   strings: strings,
+                  isSpanish: widget.locale.languageCode == 'es',
+                ),
+                if (!stats.hasActivity) ...[
+                  const SizedBox(height: 14),
+                  _EmptyStatsNotice(
+                    message: widget.locale.languageCode == 'es'
+                        ? 'Completa tu primer nivel para comenzar a llenar tus estadísticas.'
+                        : 'Complete your first level to start building your statistics.',
+                  ),
+                ],
+                const SizedBox(height: 22),
+                _SectionLabel(
+                  label: widget.locale.languageCode == 'es'
+                      ? 'Progreso por juego'
+                      : 'Progress by game',
+                ),
+                const SizedBox(height: 10),
+                _ModeProgressCard(
+                  icon: Icons.quiz_rounded,
+                  title: 'Quiz',
+                  completedLevels: stats.quizLevelsCompleted,
+                  detail: widget.locale.languageCode == 'es'
+                      ? '${stats.questionsAnswered} preguntas respondidas'
+                      : '${stats.questionsAnswered} questions answered',
+                  accent: const Color(0xFF2B6FB6),
+                  isSpanish: widget.locale.languageCode == 'es',
+                ),
+                const SizedBox(height: 10),
+                _ModeProgressCard(
+                  icon: Icons.grid_on_rounded,
+                  title: widget.locale.languageCode == 'es'
+                      ? 'Sopa de Letras'
+                      : 'Word Search',
+                  completedLevels: stats.wordSearchLevelsCompleted,
+                  detail: stats.wordSearchBestTimeSeconds > 0
+                      ? (widget.locale.languageCode == 'es'
+                          ? 'Mejor tiempo: ${_formatDuration(stats.wordSearchBestTimeSeconds)}'
+                          : 'Best time: ${_formatDuration(stats.wordSearchBestTimeSeconds)}')
+                      : (widget.locale.languageCode == 'es'
+                          ? 'Sin mejor tiempo todavía'
+                          : 'No best time yet'),
+                  accent: const Color(0xFF1F9D61),
+                  isSpanish: widget.locale.languageCode == 'es',
+                ),
+                const SizedBox(height: 10),
+                _ModeProgressCard(
+                  icon: Icons.view_module_rounded,
+                  title: '2048 Retos',
+                  completedLevels: stats.game2048LevelsCompleted,
+                  detail: stats.game2048BestMovesLeft > 0
+                      ? (widget.locale.languageCode == 'es'
+                          ? 'Mejor resultado: ${stats.game2048BestMovesLeft} movimientos restantes'
+                          : 'Best result: ${stats.game2048BestMovesLeft} moves left')
+                      : (widget.locale.languageCode == 'es'
+                          ? 'Sin mejor resultado todavía'
+                          : 'No best result yet'),
+                  accent: const Color(0xFF7157D9),
+                  isSpanish: widget.locale.languageCode == 'es',
                 ),
                 const SizedBox(height: 18),
+                _SectionLabel(
+                  label: widget.locale.languageCode == 'es'
+                      ? 'Rendimiento en Quiz'
+                      : 'Quiz performance',
+                ),
+                const SizedBox(height: 10),
                 Row(
                   children: [
                     Expanded(
@@ -142,7 +207,9 @@ class _UserStatisticsScreenState extends State<UserStatisticsScreen> {
                     Expanded(
                       child: _StatCard(
                         label: strings.text('bestPositionLabel'),
-                        value: stats.bestPosition > 0 ? '#${stats.bestPosition}' : '-',
+                        value: stats.bestPosition > 0
+                            ? '#${stats.bestPosition}'
+                            : '-',
                         icon: Icons.emoji_events_rounded,
                       ),
                     ),
@@ -173,6 +240,12 @@ class _UserStatisticsScreenState extends State<UserStatisticsScreen> {
       ),
     );
   }
+
+  String _formatDuration(int totalSeconds) {
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
 }
 
 class _StatsHero extends StatelessWidget {
@@ -180,11 +253,13 @@ class _StatsHero extends StatelessWidget {
     required this.user,
     required this.stats,
     required this.strings,
+    required this.isSpanish,
   });
 
   final AppUser user;
   final UserStatistics stats;
   final AppStrings strings;
+  final bool isSpanish;
 
   @override
   Widget build(BuildContext context) {
@@ -216,10 +291,12 @@ class _StatsHero extends StatelessWidget {
               CircleAvatar(
                 radius: 28,
                 backgroundColor: Colors.white.withValues(alpha: 0.18),
-                backgroundImage:
-                    user.profileUrl.isNotEmpty ? NetworkImage(user.profileUrl) : null,
+                backgroundImage: user.profileUrl.isNotEmpty
+                    ? NetworkImage(user.profileUrl)
+                    : null,
                 child: user.profileUrl.isEmpty
-                    ? const Icon(Icons.person_rounded, color: Colors.white, size: 28)
+                    ? const Icon(Icons.person_rounded,
+                        color: Colors.white, size: 28)
                     : null,
               ),
               const SizedBox(width: 12),
@@ -237,13 +314,9 @@ class _StatsHero extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      strings
-                          .text('statsSummaryBody')
-                          .replaceFirst('{score}', '${user.score}')
-                          .replaceFirst(
-                            '{rank}',
-                            user.rank > 0 ? '#${user.rank}' : '-',
-                          ),
+                      isSpanish
+                          ? '${user.score} niveles completados · Posición ${user.rank > 0 ? '#${user.rank}' : '-'}'
+                          : '${user.score} completed levels · Rank ${user.rank > 0 ? '#${user.rank}' : '-'}',
                       style: const TextStyle(
                         color: Color(0xFFD7ECFF),
                         fontWeight: FontWeight.w600,
@@ -259,12 +332,160 @@ class _StatsHero extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              _HeroPill(label: '${strings.text('scoreLabel')}: ${user.score}'),
+              _HeroPill(
+                label: '${isSpanish ? 'Niveles' : 'Levels'}: ${user.score}',
+              ),
               _HeroPill(
                 label:
                     '${strings.text('leaderboard')}: ${user.rank > 0 ? '#${user.rank}' : '-'}',
               ),
               _HeroPill(label: '${strings.text('coinsLabel')}: ${user.coins}'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: AppTheme.ink,
+            fontWeight: FontWeight.w900,
+          ),
+    );
+  }
+}
+
+class _EmptyStatsNotice extends StatelessWidget {
+  const _EmptyStatsNotice({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF4FF),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFBBDFFF)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.insights_rounded, color: Color(0xFF2B6FB6)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: AppTheme.ink,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModeProgressCard extends StatelessWidget {
+  const _ModeProgressCard({
+    required this.icon,
+    required this.title,
+    required this.completedLevels,
+    required this.detail,
+    required this.accent,
+    required this.isSpanish,
+  });
+
+  final IconData icon;
+  final String title;
+  final int completedLevels;
+  final String detail;
+  final Color accent;
+  final bool isSpanish;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x100E2741),
+            blurRadius: 16,
+            offset: Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(icon, color: accent),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.ink,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  detail,
+                  style: const TextStyle(
+                    color: Color(0xFF64758A),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            children: [
+              Text(
+                '$completedLevels',
+                style: TextStyle(
+                  color: accent,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Text(
+                isSpanish
+                    ? (completedLevels == 1 ? 'nivel' : 'niveles')
+                    : (completedLevels == 1 ? 'level' : 'levels'),
+                style: const TextStyle(
+                  color: Color(0xFF64758A),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
         ],

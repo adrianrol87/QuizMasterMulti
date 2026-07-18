@@ -712,6 +712,21 @@ if (isset($_POST['title']) && isset($_POST['send_notifications'])) {
     $message = $db->escapeString($_POST['message']);
     $users = $db->escapeString($_POST['users']);
     $type = $db->escapeString($_POST['type']);
+    $notification_category = isset($_POST['notification_category'])
+        ? $db->escapeString($_POST['notification_category'])
+        : 'general';
+    $preferenceColumns = array(
+        'general' => null,
+        'daily_quiz' => 'daily_quiz',
+        'new_content' => 'new_content',
+        'rewards' => 'rewards',
+        'reminders' => 'reminders',
+        'events' => 'events'
+    );
+    if (!array_key_exists($notification_category, $preferenceColumns)) {
+        $notification_category = 'general';
+    }
+    $preferenceColumn = $preferenceColumns[$notification_category];
 
     $maxlevel = $no_of = "0";
     $maincat_id = "0";
@@ -737,17 +752,32 @@ if (isset($_POST['title']) && isset($_POST['send_notifications'])) {
         $no_of = $res2[0]['no_of'];
     }
 
-    if ($users == 'all') {
-        $sql = "select `fcm_id` from `users` ";
-        $db->sql($sql);
-        $res = $db->getResult();
-        $fcm_ids = array();
-        foreach ($res as $fcm_id) {
-            if (!empty($fcm_id['fcm_id'])) {
-                $fcm_ids[] = $fcm_id['fcm_id'];
-            }
-        }
-    } elseif ($users == 'selected') {
+    $db->sql("CREATE TABLE IF NOT EXISTS user_notification_preferences (
+        user_id INT NOT NULL,
+        notifications_enabled TINYINT(1) NOT NULL DEFAULT 1,
+        daily_quiz TINYINT(1) NOT NULL DEFAULT 1,
+        new_content TINYINT(1) NOT NULL DEFAULT 1,
+        rewards TINYINT(1) NOT NULL DEFAULT 1,
+        reminders TINYINT(1) NOT NULL DEFAULT 1,
+        events TINYINT(1) NOT NULL DEFAULT 1,
+        sound_enabled TINYINT(1) NOT NULL DEFAULT 1,
+        vibration_enabled TINYINT(1) NOT NULL DEFAULT 1,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $preferenceFilter = "COALESCE(p.notifications_enabled, 1)=1";
+    if ($preferenceColumn !== null) {
+        $preferenceFilter .= " AND COALESCE(p.`" . $preferenceColumn . "`, 1)=1";
+    }
+    $recipientSql = "SELECT u.fcm_id,
+        COALESCE(p.sound_enabled, 1) AS sound_enabled,
+        COALESCE(p.vibration_enabled, 1) AS vibration_enabled
+        FROM users u
+        LEFT JOIN user_notification_preferences p ON p.user_id=u.id
+        WHERE u.fcm_id<>'' AND " . $preferenceFilter;
+
+    if ($users == 'selected') {
         $selected_list = $_POST['selected_list'];
         if (empty($selected_list)) {
             $response['error'] = true;
@@ -755,14 +785,23 @@ if (isset($_POST['title']) && isset($_POST['send_notifications'])) {
             echo json_encode($response);
             return false;
         }
-        $fcm_ids = array();
-        $fcm_ids = explode(",", $selected_list);
+        $selectedTokens = array_values(array_filter(array_map('trim', explode(',', $selected_list))));
+        $escapedTokens = array();
+        foreach ($selectedTokens as $selectedToken) {
+            $escapedTokens[] = "'" . $db->escapeString($selectedToken) . "'";
+        }
+        if (empty($escapedTokens)) {
+            echo '<p class="alert alert-danger">Please select users with a valid FCM token.</p>';
+            return false;
+        }
+        $recipientSql .= " AND u.fcm_id IN (" . implode(',', $escapedTokens) . ")";
     }
 
-    $registrationIDs = array_values(array_filter($fcm_ids));
+    $db->sql($recipientSql);
+    $recipients = $db->getResult();
 
-    if (empty($registrationIDs)) {
-        echo '<p class="alert alert-danger">No users have a valid FCM token yet.</p>';
+    if (empty($recipients)) {
+        echo '<p class="alert alert-danger">No eligible users have a valid FCM token for this preference category.</p>';
         return false;
     }
 
@@ -810,7 +849,8 @@ if (isset($_POST['title']) && isset($_POST['send_notifications'])) {
             'language_id' => $language_id,
             'maxlevel' => $maxlevel,
             'no_of' => $no_of,
-            'category_type' => $category_type
+            'category_type' => $category_type,
+            'notification_category' => $notification_category
         );
         // $newMsg['data'] = $fcmMsg;
     } else {
@@ -824,7 +864,8 @@ if (isset($_POST['title']) && isset($_POST['send_notifications'])) {
             'language_id' => $language_id,
             'maxlevel' => $maxlevel,
             'no_of' => $no_of,
-            'category_type' => $category_type
+            'category_type' => $category_type,
+            'notification_category' => $notification_category
         );
         // $newMsg['data'] = $fcmMsg;
     }
@@ -835,9 +876,16 @@ if (isset($_POST['title']) && isset($_POST['send_notifications'])) {
     $success = $failure = 0;
     $failureMessages = array();
 
-    foreach ($registrationIDs as $registrationID) {
+    foreach ($recipients as $recipient) {
         try {
-            fcm_send_v1_message($registrationID, $fcmMsg);
+            fcm_send_v1_message(
+                $recipient['fcm_id'],
+                $fcmMsg,
+                array(
+                    'sound_enabled' => ((int) $recipient['sound_enabled']) === 1,
+                    'vibration_enabled' => ((int) $recipient['vibration_enabled']) === 1
+                )
+            );
             $success++;
         } catch (Exception $e) {
             $failure++;

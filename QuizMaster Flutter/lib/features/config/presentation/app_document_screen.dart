@@ -15,11 +15,11 @@ class AppDocumentScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
+      backgroundColor: AppTheme.pageBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: AppTheme.ink,
+        foregroundColor: AppTheme.textColor(context),
       ),
       body: FutureBuilder<AppDocument>(
         future: future,
@@ -47,7 +47,7 @@ class AppDocumentScreen extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.cardBackground(context),
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: const [
                   BoxShadow(
@@ -65,9 +65,12 @@ class AppDocumentScreen extends StatelessWidget {
                       child: document.content.isEmpty
                           ? Text(
                               'No content available.',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
                                     height: 1.55,
-                                    color: const Color(0xFF41576E),
+                                    color: AppTheme.mutedTextColor(context),
                                   ),
                             )
                           : Html(

@@ -68,6 +68,18 @@ if (!isset($_SESSION['id']) && !isset($_SESSION['username'])) {
                                                     </select>
                                                 </div>
                                                 <div class="form-group">
+                                                    <label for="notification_category">Preference Category</label>
+                                                    <select name="notification_category" id="notification_category" class="form-control" required>
+                                                        <option value="general">General</option>
+                                                        <option value="daily_quiz">Daily Quiz</option>
+                                                        <option value="new_content">New Content</option>
+                                                        <option value="rewards">Rewards and Promotions</option>
+                                                        <option value="reminders">Reminders</option>
+                                                        <option value="events">Events and Competitions</option>
+                                                    </select>
+                                                    <small>Only users who enabled this category will receive the notification.</small>
+                                                </div>
+                                                <div class="form-group">
                                                     <label class="" for="title">Title</label>
                                                     <input type="text" id="title" name="title" required="required" class="form-control col-md-7 col-xs-12">
                                                 </div>

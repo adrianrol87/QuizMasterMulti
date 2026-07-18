@@ -39,14 +39,6 @@ class RemoteQuizResultRepository implements QuizResultRepository {
     }
 
     final ratio = ((correctAnswers / questionsAnswered) * 100).round();
-    final score = correctAnswers;
-
-    await apiClient.post({
-      'set_monthly_leaderboard': '1',
-      'user_id': userId,
-      'score': '$score',
-    });
-
     await apiClient.post({
       'set_users_statistics': '1',
       'user_id': userId,

@@ -8,9 +8,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/ads/quiz_ad_service.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/network/php_api_client.dart';
-import '../../../core/purchases/quiz_purchase_service.dart';
 import '../../auth/models/app_user.dart';
 import '../../shop/presentation/coin_shop_sheet.dart';
+import '../../shop/presentation/remove_ads_screen.dart';
 import '../data/game_2048_challenge_repository.dart';
 
 const String _game2048ChallengeUnlockedKey = 'game_2048_retos_unlocked_level';
@@ -44,6 +44,7 @@ class _Game2048ChallengesLevelScreenState
   String? _loadError;
   List<Game2048ChallengeLevel> _levels = const <Game2048ChallengeLevel>[];
   Set<int> _completedLevels = const <int>{};
+  late AppUser? _currentUser;
 
   bool get _isSpanish => widget.locale.languageCode == 'es';
   AppStrings get strings => AppStrings(widget.locale);
@@ -51,6 +52,7 @@ class _Game2048ChallengesLevelScreenState
   @override
   void initState() {
     super.initState();
+    _currentUser = widget.currentUser;
     _loadChallengeData();
   }
 
@@ -74,10 +76,10 @@ class _Game2048ChallengesLevelScreenState
       var completedLevels = <int>{};
       String? warningMessage;
 
-      if ((widget.currentUser?.id ?? '').isNotEmpty) {
+      if ((_currentUser?.id ?? '').isNotEmpty) {
         try {
           final progress = await _challengeRepository.fetchProgress(
-            userId: widget.currentUser!.id,
+            userId: _currentUser!.id,
           );
           unlockedLevel = progress.nextUnlockedLevel;
           completedLevels = progress.completedLevels;
@@ -135,10 +137,14 @@ class _Game2048ChallengesLevelScreenState
           coins: widget.coins,
           modeKey: 'retos_${level.levelNumber}',
           titleOverride: _isSpanish ? '2048 RETOS' : '2048 CHALLENGES',
-          currentUser: widget.currentUser,
-          onUserUpdated: widget.onUserUpdated,
+          currentUser: _currentUser,
+          onUserUpdated: (updatedUser) {
+            _currentUser = updatedUser;
+            widget.onUserUpdated?.call(updatedUser);
+          },
           totalChallengeLevels: _levels.length,
           challengeLevel: level,
+          wasPreviouslyCompleted: _completedLevels.contains(level.levelNumber),
         ),
       ),
     );
@@ -421,6 +427,7 @@ class Game2048Screen extends StatefulWidget {
     this.onUserUpdated,
     this.totalChallengeLevels,
     this.challengeLevel,
+    this.wasPreviouslyCompleted = false,
   });
 
   final Locale locale;
@@ -431,6 +438,7 @@ class Game2048Screen extends StatefulWidget {
   final ValueChanged<AppUser>? onUserUpdated;
   final int? totalChallengeLevels;
   final Game2048ChallengeLevel? challengeLevel;
+  final bool wasPreviouslyCompleted;
 
   @override
   State<Game2048Screen> createState() => _Game2048ScreenState();
@@ -684,7 +692,7 @@ class _Game2048ScreenState extends State<Game2048Screen> {
                   left: 0,
                   right: 0,
                   bottom: 84,
-                    child: Center(
+                  child: Center(
                     child: GestureDetector(
                       onTap: !_canUseTimeExtension
                           ? null
@@ -857,14 +865,23 @@ class _Game2048ScreenState extends State<Game2048Screen> {
       );
     }
 
-    if ((widget.currentUser?.id ?? '').isNotEmpty) {
+    if ((_currentUser?.id ?? '').isNotEmpty) {
       try {
         await _challengeRepository.saveProgress(
-          userId: widget.currentUser!.id,
+          userId: _currentUser!.id,
           levelNumber: level.levelNumber,
           isCompleted: true,
           bestMovesLeft: max(0, _remainingMoves ?? 0),
         );
+        if (!widget.wasPreviouslyCompleted) {
+          final updatedUser = _currentUser?.copyWith(
+            score: (_currentUser?.score ?? 0) + 1,
+          );
+          if (updatedUser != null) {
+            _currentUser = updatedUser;
+            widget.onUserUpdated?.call(updatedUser);
+          }
+        }
       } catch (_) {}
     }
 
@@ -994,47 +1011,23 @@ class _Game2048ScreenState extends State<Game2048Screen> {
   }
 
   Future<void> _removeAds() async {
-    if (!QuizPurchaseService.instance.isConfigured) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(strings.text('removeAdsNotReady'))),
-      );
+    final purchased = await RemoveAdsScreen.show(
+      context,
+      locale: widget.locale,
+    );
+    if (!mounted || !purchased) {
       return;
     }
 
-    try {
-      final purchased = await QuizPurchaseService.instance.purchaseRemoveAds();
-      if (!mounted) {
-        return;
-      }
-
-      if (!purchased) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(strings.text('removeAdsPurchaseFailed'))),
-        );
-        return;
-      }
-
-      QuizAdService.instance.setAdsRemoved(true);
-      _bannerAd?.dispose();
-      setState(() {
-        _bannerAd = null;
-        _isBannerReady = false;
-        _adsRemoved = true;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(strings.text('removeAdsPurchased'))),
-      );
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(strings.text('removeAdsPurchaseFailed'))),
-      );
-    }
+    _bannerAd?.dispose();
+    setState(() {
+      _bannerAd = null;
+      _isBannerReady = false;
+      _adsRemoved = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(strings.text('removeAdsPurchased'))),
+    );
   }
 
   Point<int>? _spawnTile() {
@@ -1600,35 +1593,25 @@ class _Game2048ScreenState extends State<Game2048Screen> {
                               ),
                               child: LayoutBuilder(
                                 builder: (context, constraints) {
-                                  final cellSize =
-                                      (constraints.maxWidth -
+                                  final cellSize = (constraints.maxWidth -
                                           (_boardSpacing * 3)) /
                                       _boardSize;
                                   return Stack(
                                     children: [
-                                      for (
-                                        var row = 0;
-                                        row < _boardSize;
-                                        row++
-                                      )
-                                        for (
-                                          var col = 0;
-                                          col < _boardSize;
-                                          col++
-                                        )
+                                      for (var row = 0; row < _boardSize; row++)
+                                        for (var col = 0;
+                                            col < _boardSize;
+                                            col++)
                                           Positioned(
-                                            left:
-                                                col *
+                                            left: col *
                                                 (cellSize + _boardSpacing),
-                                            top:
-                                                row *
+                                            top: row *
                                                 (cellSize + _boardSpacing),
                                             width: cellSize,
                                             height: cellSize,
                                             child: Container(
                                               decoration: BoxDecoration(
-                                                color:
-                                                    const Color(0xFF8B8B8B),
+                                                color: const Color(0xFF8B8B8B),
                                                 borderRadius:
                                                     BorderRadius.circular(18),
                                               ),
@@ -1665,9 +1648,8 @@ class _Game2048ScreenState extends State<Game2048Screen> {
                       child: SizedBox(
                         width: (_bannerAd?.size.width ?? AdSize.banner.width)
                             .toDouble(),
-                        height:
-                            (_bannerAd?.size.height ?? AdSize.banner.height)
-                                .toDouble(),
+                        height: (_bannerAd?.size.height ?? AdSize.banner.height)
+                            .toDouble(),
                         child: _bannerAd != null && _isBannerReady
                             ? AdWidget(ad: _bannerAd!)
                             : const SizedBox.shrink(),
@@ -2220,9 +2202,8 @@ class _ChallengeLevelCard extends StatelessWidget {
     final borderColor = isCurrent
         ? const Color(0xFF6FB3FF)
         : Colors.white.withValues(alpha: 0.14);
-    final cardColor = isCurrent
-        ? const Color(0xFF4C5967)
-        : const Color(0xFF4A4A4A);
+    final cardColor =
+        isCurrent ? const Color(0xFF4C5967) : const Color(0xFF4A4A4A);
     final status = isLocked
         ? (isSpanish ? 'Bloqueado' : 'Locked')
         : isCurrent

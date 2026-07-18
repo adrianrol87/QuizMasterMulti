@@ -94,11 +94,11 @@ class _QuizZoneScreenState extends State<QuizZoneScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
+      backgroundColor: AppTheme.pageBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: AppTheme.ink,
+        foregroundColor: AppTheme.textColor(context),
         title: Text(
           strings.text('quizZone'),
           style: theme.textTheme.titleLarge?.copyWith(
@@ -117,7 +117,8 @@ class _QuizZoneScreenState extends State<QuizZoneScreen> {
             final viewData = snapshot.data!;
             final filteredCategories = viewData.categories
                 .where(
-                  (item) => item.title.toLowerCase().contains(_query.toLowerCase()),
+                  (item) =>
+                      item.title.toLowerCase().contains(_query.toLowerCase()),
                 )
                 .toList();
 
@@ -150,7 +151,8 @@ class _QuizZoneScreenState extends State<QuizZoneScreen> {
                   Expanded(
                     child: GridView.builder(
                       itemCount: filteredCategories.length,
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         mainAxisSpacing: 14,
                         crossAxisSpacing: 14,
@@ -260,7 +262,8 @@ class _QuizCategoryCard extends StatelessWidget {
                     children: [
                       if (item.isPremium)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.18),
                             borderRadius: BorderRadius.circular(999),
@@ -299,8 +302,8 @@ class _QuizCategoryCard extends StatelessWidget {
                         child: Icon(
                           item.isPremium
                               ? (item.isPurchased
-                                    ? Icons.check_rounded
-                                    : Icons.lock_rounded)
+                                  ? Icons.check_rounded
+                                  : Icons.lock_rounded)
                               : Icons.check_rounded,
                           color: Colors.white,
                           size: 17,

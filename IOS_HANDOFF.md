@@ -16,7 +16,7 @@ Estado preparado desde Windows para continuar en Mac/Xcode.
 - RevenueCat iOS todavía no está terminado.
 - Clave RevenueCat actual en Flutter:
   - Android: configurada
-  - Apple: pendiente
+- Apple: configurada
 
 ## Archivo clave a revisar
 
@@ -104,7 +104,7 @@ Pendiente en Flutter:
 Valor actual pendiente:
 
 ```dart
-static const revenueCatAppleApiKey = '';
+static const revenueCatAppleApiKey = 'configurada';
 ```
 
 Cuando tengas la llave pública de RevenueCat para App Store:
@@ -122,13 +122,12 @@ Crear o verificar:
 
 Productos esperados actualmente:
 
-- `remove_ads`
-- `coins_1000`
-- `coins_3000`
-- `coins_5000`
-- `coins_8500`
-- `coins_10500`
-- `coins_17000`
+- `remove_ads` — MX$99.00
+- `coins_tier1` — 3,000 monedas — MX$19.00
+- `coins_tier2` — 5,000 monedas — MX$29.00
+- `coins_tier3` — 8,500 monedas — MX$39.00
+- `coins_tier4` — 10,500 monedas — MX$49.00
+- `coins_tier5` — 17,000 monedas — MX$59.00
 
 Si decides cambiar IDs, actualizar también Flutter y RevenueCat.
 

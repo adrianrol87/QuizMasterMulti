@@ -1,10 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/ads/quiz_ad_service.dart';
 import '../../../core/config/backend_config.dart';
 import '../../../core/l10n/app_strings.dart';
+import '../../../core/network/php_api_client.dart';
+import '../../../core/notifications/push_notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/data/leaderboard_repository.dart';
@@ -13,14 +17,21 @@ import '../../auth/models/app_user.dart';
 import '../../auth/presentation/leaderboard_screen.dart';
 import '../../auth/presentation/profile_screen.dart';
 import '../../auth/presentation/user_statistics_screen.dart';
+import '../../bookmarks/data/bookmark_repository.dart';
+import '../../bookmarks/presentation/bookmarks_screen.dart';
 import '../../config/data/app_content_repository.dart';
 import '../../config/data/mock_system_config_repository.dart';
 import '../../config/data/mock_app_content_repository.dart';
 import '../../config/models/system_config.dart';
 import '../../config/presentation/app_document_screen.dart';
 import '../../config/presentation/app_settings_screen.dart';
+import '../../notifications/data/notification_preferences_repository.dart';
+import '../../notifications/presentation/notification_settings_screen.dart';
 import '../../quiz/data/mock_quiz_repository.dart';
 import '../../quiz/data/quiz_result_repository.dart';
+import '../../referrals/data/referral_repository.dart';
+import '../../referrals/presentation/invite_friends_screen.dart';
+import '../../shop/presentation/remove_ads_screen.dart';
 import '../data/home_bootstrap_repository.dart';
 import '../models/home_bootstrap_data.dart';
 import 'widgets/dashboard_sections.dart';
@@ -40,6 +51,9 @@ class HomeShell extends StatefulWidget {
     this.appContentRepository = const MockAppContentRepository(),
     this.quizRepository = const MockQuizRepository(),
     this.quizResultRepository = const MockQuizResultRepository(),
+    required this.pushNotificationService,
+    required this.themeMode,
+    required this.onThemeModeChanged,
   });
 
   final Locale locale;
@@ -54,6 +68,9 @@ class HomeShell extends StatefulWidget {
   final AppContentRepository appContentRepository;
   final QuizRepository quizRepository;
   final QuizResultRepository quizResultRepository;
+  final PushNotificationService pushNotificationService;
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -62,6 +79,8 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   late HomeBootstrapRepository _repository;
   late Future<HomeBootstrapData> _future;
+  BannerAd? _bannerAd;
+  bool _isBannerReady = false;
 
   @override
   void initState() {
@@ -71,6 +90,13 @@ class _HomeShellState extends State<HomeShell> {
       quizRepository: widget.quizRepository,
     );
     _future = _load();
+    _prepareBanner();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
   }
 
   @override
@@ -91,12 +117,21 @@ class _HomeShellState extends State<HomeShell> {
     }
   }
 
-  Future<HomeBootstrapData> _load() {
+  Future<HomeBootstrapData> _load() async {
     final languageId = widget.locale.languageCode == 'es' ? '1' : '2';
-    return _repository.load(
+    final data = await _repository.load(
       languageId: languageId,
       userId: widget.currentUser.id,
     );
+    await QuizAdService.instance.configure(data.systemConfig);
+    if (mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _prepareBanner();
+        }
+      });
+    }
+    return data;
   }
 
   Future<void> _refreshHome() async {
@@ -104,6 +139,74 @@ class _HomeShellState extends State<HomeShell> {
       _future = _load();
     });
     await _future;
+  }
+
+  void _prepareBanner() {
+    if (QuizAdService.instance.adsRemoved || _bannerAd != null) {
+      return;
+    }
+
+    _bannerAd = QuizAdService.instance.createQuestionBanner(
+      onLoaded: () {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _isBannerReady = true;
+        });
+      },
+      onFailed: () {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _bannerAd = null;
+          _isBannerReady = false;
+        });
+      },
+    );
+  }
+
+  Future<void> _openRemoveAds() async {
+    final removed = await RemoveAdsScreen.show(
+      context,
+      locale: widget.locale,
+    );
+    if (!mounted || !removed) {
+      return;
+    }
+
+    _disposeBanner();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          AppStrings(widget.locale).text('removeAdsPurchased'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleGameReturned() async {
+    if (QuizAdService.instance.adsRemoved) {
+      if (mounted && _bannerAd != null) {
+        _disposeBanner();
+      }
+      return;
+    }
+    await QuizAdService.instance.maybeShowInterstitialAfterGameReturn();
+  }
+
+  void _disposeBanner() {
+    _bannerAd?.dispose();
+    if (!mounted) {
+      _bannerAd = null;
+      _isBannerReady = false;
+      return;
+    }
+    setState(() {
+      _bannerAd = null;
+      _isBannerReady = false;
+    });
   }
 
   @override
@@ -123,8 +226,12 @@ class _HomeShellState extends State<HomeShell> {
         leaderboardRepository: widget.leaderboardRepository,
         appContentRepository: widget.appContentRepository,
         systemConfigRepository: widget.systemConfigRepository,
+        pushNotificationService: widget.pushNotificationService,
+        themeMode: widget.themeMode,
+        onThemeModeChanged: widget.onThemeModeChanged,
+        onLocaleChanged: widget.onLocaleChanged,
       ),
-      backgroundColor: const Color(0xFFF4F7FB),
+      backgroundColor: AppTheme.pageBackground(context),
       body: SafeArea(
         child: Column(
           children: [
@@ -135,13 +242,15 @@ class _HomeShellState extends State<HomeShell> {
               onLocaleChanged: widget.onLocaleChanged,
               currentUser: widget.currentUser,
               onStatsTap: () => _openUserStats(context),
+              adsRemoved: QuizAdService.instance.adsRemoved,
+              onRemoveAdsTap: _openRemoveAds,
             ),
             Expanded(
               child: Container(
                 width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF4F7FB),
-                  borderRadius: BorderRadius.vertical(
+                decoration: BoxDecoration(
+                  color: AppTheme.pageBackground(context),
+                  borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(28),
                   ),
                 ),
@@ -155,24 +264,18 @@ class _HomeShellState extends State<HomeShell> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.cloud_off_rounded,
                                 size: 40,
-                                color: Color(0xFF5F748C),
+                                color: AppTheme.mutedTextColor(context),
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                'No se pudo cargar el inicio.',
+                                widget.locale.languageCode == 'es'
+                                    ? 'No se pudo cargar.'
+                                    : 'Could not load.',
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '${snapshot.error}',
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: const Color(0xFF5F748C),
                                 ),
                               ),
                               const SizedBox(height: 16),
@@ -182,7 +285,11 @@ class _HomeShellState extends State<HomeShell> {
                                     _future = _load();
                                   });
                                 },
-                                child: const Text('Reintentar'),
+                                child: Text(
+                                  widget.locale.languageCode == 'es'
+                                      ? 'Reintentar'
+                                      : 'Retry',
+                                ),
                               ),
                             ],
                           ),
@@ -197,8 +304,7 @@ class _HomeShellState extends State<HomeShell> {
                     }
 
                     final data = snapshot.data!;
-                    final hasVisibleModules =
-                        data.quizCategories.isNotEmpty ||
+                    final hasVisibleModules = data.quizCategories.isNotEmpty ||
                         data.systemConfig.dailyQuizMode ||
                         data.systemConfig.trueFalseMode ||
                         data.systemConfig.spinMode ||
@@ -249,6 +355,16 @@ class _HomeShellState extends State<HomeShell> {
                             currentUser: widget.currentUser,
                             authRepository: widget.authRepository,
                             onUserUpdated: widget.onUserUpdated,
+                            onGameReturned: _handleGameReturned,
+                            inlineBanner: _bannerAd != null &&
+                                    _isBannerReady &&
+                                    !QuizAdService.instance.adsRemoved
+                                ? SizedBox(
+                                    width: _bannerAd!.size.width.toDouble(),
+                                    height: _bannerAd!.size.height.toDouble(),
+                                    child: AdWidget(ad: _bannerAd!),
+                                  )
+                                : null,
                           ),
                         ],
                       ),
@@ -276,109 +392,6 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
-class _ContentStatusBanner extends StatelessWidget {
-  const _ContentStatusBanner({
-    required this.strings,
-    required this.categoryCount,
-    required this.systemConfig,
-    required this.onRefresh,
-  });
-
-  final AppStrings strings;
-  final int categoryCount;
-  final SystemConfig systemConfig;
-  final Future<void> Function() onRefresh;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabledModules = <String>[
-      if (categoryCount > 0) strings.text('quizZone'),
-      if (systemConfig.dailyQuizMode) strings.text('dailyQuiz'),
-      if (systemConfig.trueFalseMode) strings.text('trueFalse'),
-      if (systemConfig.spinMode) strings.text('randomQuiz'),
-      if (systemConfig.learningZoneMode) strings.text('learningZone'),
-      if (systemConfig.mathsQuizMode) strings.text('mathsQuiz'),
-      if (systemConfig.battleGroupCategoryMode) strings.text('groupBattle'),
-      if (systemConfig.battleRandomCategoryMode) strings.text('randomBattle'),
-      if (systemConfig.contestMode) strings.text('contests'),
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE3EBF4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  strings.text('contentStatusTitle'),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.ink,
-                      ),
-                ),
-              ),
-              IconButton(
-                onPressed: onRefresh,
-                icon: const Icon(Icons.refresh_rounded),
-                tooltip: strings.text('refreshHome'),
-                style: IconButton.styleFrom(
-                  backgroundColor: const Color(0xFFF2F7FC),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            strings.text('contentStatusBody').replaceFirst(
-              '{count}',
-              '$categoryCount',
-            ),
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF5E748C),
-                  height: 1.45,
-                ),
-          ),
-          if (enabledModules.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: enabledModules
-                  .map(
-                    (label) => Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEAF4FF),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        label,
-                        style: const TextStyle(
-                          color: Color(0xFF2B6FB6),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 class _MainDrawer extends StatelessWidget {
   const _MainDrawer({
     required this.strings,
@@ -391,6 +404,10 @@ class _MainDrawer extends StatelessWidget {
     required this.leaderboardRepository,
     required this.appContentRepository,
     required this.systemConfigRepository,
+    required this.pushNotificationService,
+    required this.themeMode,
+    required this.onThemeModeChanged,
+    required this.onLocaleChanged,
   });
 
   final AppStrings strings;
@@ -403,6 +420,10 @@ class _MainDrawer extends StatelessWidget {
   final LeaderboardRepository leaderboardRepository;
   final AppContentRepository appContentRepository;
   final SystemConfigRepository systemConfigRepository;
+  final PushNotificationService pushNotificationService;
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
+  final ValueChanged<Locale> onLocaleChanged;
 
   void _showSoonMessage(BuildContext context, AppStrings strings) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -540,9 +561,9 @@ class _MainDrawer extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            const Text(
                               'QuizMaster',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
@@ -621,7 +642,17 @@ class _MainDrawer extends StatelessWidget {
                   label: strings.text('bookmarks'),
                   onTap: () {
                     Navigator.of(context).pop();
-                    _showSoonMessage(context, strings);
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => BookmarksScreen(
+                          locale: locale,
+                          currentUser: currentUser,
+                          repository: RemoteBookmarkRepository(
+                            apiClient: PhpApiClient(),
+                          ),
+                        ),
+                      ),
+                    );
                   },
                 ),
                 const Divider(height: 20),
@@ -631,18 +662,48 @@ class _MainDrawer extends StatelessWidget {
                   label: strings.text('notifications'),
                   onTap: () {
                     Navigator.of(context).pop();
-                    _showSoonMessage(context, strings);
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => NotificationSettingsScreen(
+                          locale: locale,
+                          currentUser: currentUser,
+                          repository: NotificationPreferencesRepository(
+                            apiClient: PhpApiClient(),
+                          ),
+                          pushService: pushNotificationService,
+                        ),
+                      ),
+                    );
                   },
                 ),
                 _DrawerItem(
                   icon: Icons.group_add_rounded,
                   label: strings.text('inviteFriends'),
-                  onTap: () async {
+                  onTap: () {
+                    if (config == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            locale.languageCode == 'es'
+                                ? 'Espera un momento e intenta de nuevo.'
+                                : 'Wait a moment and try again.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
                     Navigator.of(context).pop();
-                    await _copyText(
-                      context,
-                      config?.shareAppText ?? '',
-                      strings,
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => InviteFriendsScreen(
+                          locale: locale,
+                          currentUser: currentUser,
+                          config: config,
+                          repository: RemoteReferralRepository(
+                            apiClient: PhpApiClient(),
+                          ),
+                        ),
+                      ),
                     );
                   },
                 ),
@@ -671,6 +732,9 @@ class _MainDrawer extends StatelessWidget {
                       MaterialPageRoute<void>(
                         builder: (_) => AppSettingsScreen(
                           locale: locale,
+                          onLocaleChanged: onLocaleChanged,
+                          themeMode: themeMode,
+                          onThemeModeChanged: onThemeModeChanged,
                           systemConfigFuture:
                               systemConfigRepository.fetchSystemConfig(),
                           contentRepository: appContentRepository,
@@ -740,25 +804,22 @@ class _DrawerItem extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.trailing,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: AppTheme.ink),
+      leading: Icon(icon, color: Theme.of(context).colorScheme.onSurface),
       title: Text(
         label,
         style: const TextStyle(
           fontWeight: FontWeight.w700,
         ),
       ),
-      trailing: trailing,
       onTap: onTap,
     );
   }
@@ -772,6 +833,8 @@ class _FixedBlueHeader extends StatelessWidget {
     required this.onLocaleChanged,
     required this.currentUser,
     required this.onStatsTap,
+    required this.adsRemoved,
+    required this.onRemoveAdsTap,
   });
 
   final AppStrings strings;
@@ -780,6 +843,8 @@ class _FixedBlueHeader extends StatelessWidget {
   final ValueChanged<Locale> onLocaleChanged;
   final AppUser currentUser;
   final VoidCallback onStatsTap;
+  final bool adsRemoved;
+  final VoidCallback onRemoveAdsTap;
 
   @override
   Widget build(BuildContext context) {
@@ -828,6 +893,26 @@ class _FixedBlueHeader extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
+                IconButton(
+                  onPressed: adsRemoved ? null : onRemoveAdsTap,
+                  tooltip: locale.languageCode == 'es'
+                      ? 'Eliminar anuncios'
+                      : 'Remove ads',
+                  icon: Opacity(
+                    opacity: adsRemoved ? 0.45 : 1,
+                    child: Image.asset(
+                      'assets/images/sopa/NoAds.png',
+                      width: 24,
+                      height: 24,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white.withValues(alpha: 0.14),
+                    minimumSize: const Size(40, 40),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 IconButton(
                   onPressed: () => _showLanguageSheet(context),
                   icon: const Icon(
@@ -891,12 +976,12 @@ class _FixedBlueHeader extends StatelessWidget {
                   onTap: onStatsTap,
                 ),
                 _TopStatChip(
-                  assetPath: 'assets/images/versus.png',
+                  icon: Icons.emoji_events_rounded,
                   value: '${currentUser.score}',
                   onTap: onStatsTap,
                 ),
                 _TopStatChip(
-                  assetPath: 'assets/images/leaderboard.png',
+                  icon: Icons.leaderboard_rounded,
                   value: '${currentUser.rank}',
                   onTap: onStatsTap,
                 ),
@@ -911,7 +996,7 @@ class _FixedBlueHeader extends StatelessWidget {
   void _showLanguageSheet(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.cardBackground(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -927,7 +1012,7 @@ class _FixedBlueHeader extends StatelessWidget {
                   strings.text('languageLabel'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
-                    color: AppTheme.ink,
+                    color: AppTheme.textColor(context),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -1028,12 +1113,14 @@ class _LanguageOption extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFEAF4FF) : Colors.white,
+          color: selected
+              ? const Color(0xFF2B80D8).withValues(alpha: 0.18)
+              : AppTheme.cardBackground(context),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: selected
                 ? const Color(0xFF2B6FB6)
-                : const Color(0xFFE2EAF4),
+                : AppTheme.borderColor(context),
           ),
         ),
         child: Row(
@@ -1043,7 +1130,9 @@ class _LanguageOption extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: selected ? const Color(0xFF2B6FB6) : AppTheme.ink,
+                  color: selected
+                      ? const Color(0xFF2B6FB6)
+                      : AppTheme.textColor(context),
                 ),
               ),
             ),
@@ -1077,7 +1166,7 @@ class _MaintenanceView extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppTheme.cardBackground(context),
             borderRadius: BorderRadius.circular(28),
             boxShadow: const [
               BoxShadow(
@@ -1108,7 +1197,7 @@ class _MaintenanceView extends StatelessWidget {
                 message,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF5F748C),
+                      color: AppTheme.mutedTextColor(context),
                       height: 1.5,
                     ),
               ),
@@ -1196,9 +1285,9 @@ class _HomeEmptyState extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.cardBackground(context),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFE3EBF4)),
+        border: Border.all(color: AppTheme.borderColor(context)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0F12304A),
@@ -1220,7 +1309,7 @@ class _HomeEmptyState extends StatelessWidget {
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w800,
-                  color: AppTheme.ink,
+                  color: AppTheme.textColor(context),
                 ),
           ),
           const SizedBox(height: 8),
@@ -1228,7 +1317,7 @@ class _HomeEmptyState extends StatelessWidget {
             message,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF5E748C),
+                  color: AppTheme.mutedTextColor(context),
                   height: 1.45,
                 ),
           ),

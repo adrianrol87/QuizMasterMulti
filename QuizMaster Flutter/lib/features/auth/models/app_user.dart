@@ -10,6 +10,8 @@ class AppUser {
     required this.coins,
     required this.score,
     required this.rank,
+    this.referCode = '',
+    this.friendsCode = '',
   });
 
   factory AppUser.fromSignupResponse(Map<String, dynamic> json) {
@@ -23,7 +25,11 @@ class AppUser {
       loginType: (json['type'] ?? 'email').toString(),
       coins: int.tryParse((json['coins'] ?? '0').toString()) ?? 0,
       score: int.tryParse((json['score'] ?? '0').toString()) ?? 0,
-      rank: int.tryParse((json['all_time_rank'] ?? json['user_rank'] ?? '0').toString()) ?? 0,
+      rank: int.tryParse(
+              (json['all_time_rank'] ?? json['user_rank'] ?? '0').toString()) ??
+          0,
+      referCode: (json['refer_code'] ?? '').toString(),
+      friendsCode: (json['friends_code'] ?? '').toString(),
     );
   }
 
@@ -37,8 +43,14 @@ class AppUser {
       profileUrl: (json['profile'] ?? '').toString(),
       loginType: (json['type'] ?? 'email').toString(),
       coins: int.tryParse((json['coins'] ?? '0').toString()) ?? 0,
-      score: int.tryParse((json['all_time_score'] ?? json['score'] ?? '0').toString()) ?? 0,
-      rank: int.tryParse((json['all_time_rank'] ?? json['user_rank'] ?? '0').toString()) ?? 0,
+      score: int.tryParse(
+              (json['all_time_score'] ?? json['score'] ?? '0').toString()) ??
+          0,
+      rank: int.tryParse(
+              (json['all_time_rank'] ?? json['user_rank'] ?? '0').toString()) ??
+          0,
+      referCode: (json['refer_code'] ?? '').toString(),
+      friendsCode: (json['friends_code'] ?? '').toString(),
     );
   }
 
@@ -52,6 +64,8 @@ class AppUser {
   final int coins;
   final int score;
   final int rank;
+  final String referCode;
+  final String friendsCode;
 
   AppUser copyWith({
     String? id,
@@ -64,6 +78,8 @@ class AppUser {
     int? coins,
     int? score,
     int? rank,
+    String? referCode,
+    String? friendsCode,
   }) {
     return AppUser(
       id: id ?? this.id,
@@ -76,6 +92,8 @@ class AppUser {
       coins: coins ?? this.coins,
       score: score ?? this.score,
       rank: rank ?? this.rank,
+      referCode: referCode ?? this.referCode,
+      friendsCode: friendsCode ?? this.friendsCode,
     );
   }
 }
